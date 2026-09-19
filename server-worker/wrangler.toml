@@ -4,11 +4,11 @@ compatibility_date = "2025-01-01"
 account_id = "aee3e69fc4a6677186fe28bfb7cd4a9c"  # Lixingli1024@qq.com's Account
 workers_dev = true                          # 先开 workers.dev 试用域名
 
-# ---------- D1 数据库（wrangler d1 create zenew 后把 database_id 粘这里）----------
+# ---------- D1 数据库（region APAC，面向国内低延迟；旧库 zenew/WNAM 已弃用）----------
 [[d1_databases]]
 binding = "DB"
-database_name = "zenew"
-database_id = "a996a6bf-27d5-42f3-8505-83110b4c2113"
+database_name = "zenew-apac"
+database_id = "f89d3932-6fdb-4751-8f8e-1a0e3e782c30"
 
 # ---------- 变量（非密钥）----------
 [vars]

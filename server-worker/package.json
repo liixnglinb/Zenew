@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:init": "wrangler d1 execute zenew --remote --file schema.sql",
-    "db:init:local": "wrangler d1 execute zenew --local --file schema.sql",
+    "db:init": "wrangler d1 execute zenew-apac --remote --file schema.sql",
+    "db:init:local": "wrangler d1 execute zenew-apac --local --file schema.sql",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

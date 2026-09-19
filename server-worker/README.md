@@ -26,10 +26,10 @@ npx wrangler login
 npx wrangler whoami            # 记下 Account ID，填进 wrangler.toml
 
 # 2. 建 D1 数据库，把输出的 database_id 填进 wrangler.toml
-npx wrangler d1 create zenew
+npx wrangler d1 create zenew-apac --location apac
 
 # 3. 建表（线上库）
-npx wrangler d1 execute zenew --remote --file schema.sql
+npx wrangler d1 execute zenew-apac --remote --file schema.sql
 
 # 4. 写密钥（交互输入，不落盘）
 npx wrangler secret put JWT_SECRET     # 建议 32 字节以上随机串
@@ -81,7 +81,7 @@ custom_domain = true
 
 ```bash
 npm install
-npx wrangler d1 execute zenew --local --file schema.sql   # 建本地库
+npx wrangler d1 execute zenew-apac --local --file schema.sql   # 建本地库
 npm run dev                                               # http://127.0.0.1:8787，provider=mock
 ```
 
