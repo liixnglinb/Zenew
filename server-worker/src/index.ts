@@ -451,6 +451,40 @@ app.post('/gen/outline', auth, async (c) => {
   return c.json({ outline, provider: c.env.LLM_PROVIDER, usage })
 })
 
+// ---------- 教材片段 → 知识点大纲（PDF 流水线用：每解析完一段调一次） ----------
+app.post('/gen/outline-segment', auth, async (c) => {
+  const userId = c.get('userId')
+  if (await globalBudgetExhausted(c.env)) return err(c, 503, '服务本月额度已用完，请下月再来')
+  if (await overRate(c.env, userId)) return err(c, 429, '请求太频繁，请稍后再试')
+  const freeUsedBefore = await usedThisMonth(c.env, userId)
+  if (!(await quotaAllows(c.env, userId))) return err(c, 402, '免费额度已用完，请充值后继续')
+
+  const body: any = await c.req.json().catch(() => ({}))
+  const text = typeof body.text === 'string' ? body.text.slice(0, 6000) : ''
+  const course = String(body.course ?? '').trim().slice(0, 120)
+  if (text.trim().length < 40) return err(c, 400, '片段太短，无法提取知识点')
+
+  const system =
+    '你是大学教材编辑。从给定的教材片段中提取真实出现的知识点，原子粒度（一个概念/一条定理/一种方法），' +
+    '按片段中的出现顺序排列；只提取片段里实际讲到的内容，不要脑补片段外的内容。只输出 JSON。'
+  const userPrompt =
+    (course ? `课程：《${course}》\n` : '') +
+    `教材片段：\n${text}\n\n` +
+    '提取 3-10 个知识点（每个 ≤40 字）。输出 JSON：{"topics":["知识点1","知识点2"]}'
+  const r = await llmChat(c.env, system, userPrompt)
+  await logUsage(c.env, userId, '/gen/outline-segment', r.usage)
+  await settleUsage(c.env, userId, freeUsedBefore, (r.usage.prompt_tokens ?? 0) + (r.usage.completion_tokens ?? 0))
+  try {
+    const data = extractJson(r.content)
+    const topics = (Array.isArray(data.topics) ? data.topics : [])
+      .map((t: any) => String(t ?? '').trim())
+      .filter(Boolean)
+    return c.json({ topics, usage: r.usage })
+  } catch {
+    return c.json({ topics: [], usage: r.usage })
+  }
+})
+
 app.post('/gen/cards', auth, async (c) => {
   const userId = c.get('userId')
   if (await globalBudgetExhausted(c.env)) return err(c, 503, '服务本月额度已用完，请下月再来')
