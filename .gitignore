@@ -12,3 +12,6 @@ __pycache__/
 # 更新签名私钥与本地构建产物（严禁入库）
 .tauri/
 release/
+ui-*.png
+e2e-*.png
+docs/screenshots/
