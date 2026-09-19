@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDb } from '../db'
-import { Play } from 'lucide-react'
-
-interface Summary {
-  due: number
-  fresh: number
-  streak: number
-}
+import { Play, Flame, Clock3, Layers } from 'lucide-react'
 
 export default function Today() {
   const nav = useNavigate()
-  const [s, setS] = useState<Summary | null>(null)
+  const [s, setS] = useState<{ due: number; fresh: number; streak: number } | null>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -44,43 +38,64 @@ export default function Today() {
 
   const total = (s?.due || 0) + (s?.fresh || 0)
   const minutes = Math.max(1, Math.round((total * 25) / 60))
+  const has = total > 0
 
   return (
     <div>
       <div className="page-title">今日</div>
-      <div className="page-sub">{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</div>
-
-      <div className="card" style={{ padding: 28 }}>
-        {total === 0 ? (
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 600 }}>当前没有待复习的卡片</div>
-            <div className="muted" style={{ margin: '6px 0 16px' }}>去课程页选择知识点，生成卡片后开始学习。</div>
-            <button className="btn btn-primary" onClick={() => nav('/courses')}>
-              前往课程
-            </button>
-          </div>
-        ) : (
-          <div>
-            <div style={{ fontSize: 34, fontWeight: 700 }}>
-              {total} <span style={{ fontSize: 15, fontWeight: 400, color: 'var(--ink-soft)' }}>张卡片待学习</span>
-            </div>
-            <div className="muted" style={{ margin: '6px 0 18px' }}>
-              复习 {s?.due || 0} 张 · 新学 {s?.fresh || 0} 张 · 预计 {minutes} 分钟
-              {s && s.streak > 0 && ` · 已连续 ${s.streak} 天`}
-            </div>
-            <button className="btn btn-accent btn-lg" onClick={() => nav('/review')}>
-              <Play size={16} /> 开始学习
-            </button>
-          </div>
+      <div className="page-sub">
+        {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+        {s && s.streak > 0 && (
+          <span className="tag tag-amber" style={{ marginLeft: 10 }}>
+            <Flame size={11} style={{ marginRight: 4 }} />
+            连续 {s.streak} 天
+          </span>
         )}
       </div>
 
-      <div className="card">
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>为什么是"先回忆，再看答案"？</div>
-        <div className="muted">
-          提取练习（主动回忆）比重复阅读记得更牢——这是学习科学中证据最强的结论之一。觉得"有点想不起来"恰恰是记忆变强的时刻。
+      {has ? (
+        <div className="card" style={{ padding: '28px 30px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
+            <div>
+              <div className="display-num">{total}</div>
+              <div className="muted" style={{ marginTop: 2 }}>张卡片待学习</div>
+            </div>
+            <div style={{ width: 1, height: 44, background: 'var(--line)', alignSelf: 'center' }} />
+            <div style={{ display: 'flex', gap: 22, color: 'var(--ink-2)', fontSize: 13 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Layers size={14} /> 复习 {s?.due || 0}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Clock3 size={14} /> 约 {minutes} 分钟
+              </span>
+            </div>
+          </div>
+          <div style={{ marginTop: 22 }}>
+            <button className="btn btn-primary btn-lg" onClick={() => nav('/review')}>
+              <Play size={15} /> 开始学习
+            </button>
+            <span className="muted" style={{ marginLeft: 14, fontSize: 12.5 }}>
+              复习时按 <kbd>1</kbd>-<kbd>4</kbd> 打分，<kbd>空格</kbd> 显示答案
+            </span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="card" style={{ padding: '30px 30px' }}>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>队列已清空</div>
+          <div className="muted" style={{ margin: '5px 0 18px' }}>
+            记忆需要间隔。明天再来，或现在去课程页生成新的知识点卡片。
+          </div>
+          <button className="btn btn-primary" onClick={() => nav('/courses')}>前往课程</button>
+        </div>
+      )}
+
+      {has && (
+        <div className="card card-flat" style={{ marginTop: 12, padding: '14px 18px', background: 'var(--paper-alt)' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>
+            为什么先回忆再看答案？主动回想比重读记得更牢——觉得「有点想不起来」正是记忆变强的时刻。
+          </span>
+        </div>
+      )}
     </div>
   )
 }

@@ -65,7 +65,7 @@ export default function CourseDetail() {
         )
         added++
       }
-      setNotice(`《${title}》生成 ${added} 张卡片${r.rejected?.length ? `，${r.rejected.length} 张未通过质检被丢弃` : ''}`)
+      setNotice(`《${title}》已生成 ${added} 张卡片${r.rejected?.length ? `，${r.rejected.length} 张未通过质检被丢弃` : ''}`)
       await load()
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : '生成失败')
@@ -77,36 +77,44 @@ export default function CourseDetail() {
   return (
     <div>
       <div className="page-title">{courseName}</div>
-      <div className="page-sub">点击知识点生成练习卡片（每张卡都是一次"先回忆再看答案"的提取练习）</div>
+      <div className="page-sub">点击知识点右侧按钮生成练习卡片；生成后即可在「今日」开始复习</div>
       {notice && (
-        <div className="card" style={{ borderColor: 'var(--ok)', background: 'var(--ok-soft)', padding: 12 }}>
-          <span style={{ color: 'var(--ok)', fontSize: 13 }}>{notice}</span>
+        <div className="tag tag-ok" style={{ display: 'inline-flex', marginBottom: 14, padding: '5px 12px' }}>
+          {notice}
         </div>
       )}
       {err && <div className="error-text">{err}</div>}
 
       {chapters.map(({ ch, topics }) => (
-        <div key={ch.id} className="card">
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>{ch.title}</div>
-          {topics.map((t) => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderTop: '1px solid var(--border)' }}>
-              <div style={{ flex: 1 }}>
-                <div>{t.title}</div>
-                {t.stat.total > 0 && (
-                  <div className="bar" style={{ width: 180, marginTop: 4 }}>
-                    <span className="seg-ok" style={{ width: `${(t.stat.mastered / t.stat.total) * 100}%` }} />
-                    <span className="seg-accent" style={{ width: `${((t.stat.total - t.stat.mastered) / t.stat.total) * 100}%` }} />
-                  </div>
-                )}
+        <div key={ch.id} style={{ marginBottom: 26 }}>
+          <div className="section-label">
+            {ch.title}
+          </div>
+          <div className="rows">
+            {topics.map((t) => (
+              <div key={t.id} className="row" style={{ cursor: 'default' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="row-title" style={{ fontWeight: 500 }}>{t.title}</div>
+                  {t.stat.total > 0 && (
+                    <div className="bar" style={{ width: 160, marginTop: 6 }}>
+                      <span className="seg-ok" style={{ width: `${(t.stat.mastered / t.stat.total) * 100}%` }} />
+                      <span className="seg-amber" style={{ width: `${((t.stat.total - t.stat.mastered) / t.stat.total) * 100}%` }} />
+                    </div>
+                  )}
+                </div>
+                <div className="row-meta" style={{ minWidth: 84, textAlign: 'right' }}>
+                  {t.stat.total > 0 ? (
+                    <span className="stat-value">{t.stat.mastered}/{t.stat.total} 掌握</span>
+                  ) : (
+                    <span style={{ color: 'var(--ink-3)' }}>尚无卡片</span>
+                  )}
+                </div>
+                <button className="btn btn-sm" disabled={genning !== null} onClick={() => generate(t.id, t.title)}>
+                  {genning === t.id ? '生成中…' : t.stat.total > 0 ? '再加 5 张' : '生成卡片'}
+                </button>
               </div>
-              <div className="muted" style={{ minWidth: 90, textAlign: 'right' }}>
-                {t.stat.total > 0 ? `${t.stat.mastered}/${t.stat.total} 掌握` : '尚无卡片'}
-              </div>
-              <button className="btn" disabled={genning !== null} onClick={() => generate(t.id, t.title)}>
-                {genning === t.id ? '生成中…' : t.stat.total > 0 ? '再生成 5 张' : '生成卡片'}
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       ))}
     </div>

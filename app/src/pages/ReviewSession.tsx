@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Check, X } from 'lucide-react'
 import { getDb, loadQueue, nowIso, type QueueItem } from '../db'
 import { schedule, R } from '../fsrs'
 
@@ -27,31 +28,69 @@ export default function ReviewSession() {
     })()
   }, [])
 
+  // 键盘流：空格显示答案，1-4 打分，1-4 也可选选项，回车下一张
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const item = queue[idx]
+      if (!item || done) return
+      const hasChoices = !!item.choices_json
+      if (phase === 'front' && e.code === 'Space') {
+        e.preventDefault()
+        if (hasChoices) return
+        setPhase('answered')
+        return
+      }
+      if (phase === 'answered' && !hasChoices && ['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault()
+        selfGrade(Number(e.key) as 1 | 2 | 3 | 4)
+        return
+      }
+      if (phase === 'front' && hasChoices && ['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault()
+        pickChoice(Number(e.key) - 1)
+        return
+      }
+      if (phase === 'answered' && hasChoices && (e.key === 'Enter' || e.code === 'Space')) {
+        e.preventDefault()
+        advance()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue, idx, phase, done])
+
   if (loading) return <div className="muted">载入中…</div>
 
   if (done || queue.length === 0) {
     const s = done || { total: 0, again: 0, ms: 0 }
     return (
       <div className="review-stage">
-        <div className="page-title">{queue.length === 0 && !done ? '没有待学习的卡片' : '本次学习完成'}</div>
+        <div className="page-title" style={{ marginBottom: 16 }}>
+          {queue.length === 0 && !done ? '没有待学习的卡片' : '本次学习完成'}
+        </div>
         {done && (
-          <div className="card" style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 17 }}>
-              共 {s.total} 张 · 标记"忘了" {s.again} 张 · 用时 {Math.round(s.ms / 1000)} 秒
+          <div className="card">
+            <div style={{ display: 'flex', gap: 28, alignItems: 'baseline' }}>
+              <div>
+                <div className="display-num" style={{ fontSize: 42 }}>{s.total}</div>
+                <div className="muted">张完成</div>
+              </div>
+              <div style={{ width: 1, height: 40, background: 'var(--line)' }} />
+              <div style={{ display: 'flex', gap: 20, color: 'var(--ink-2)', fontSize: 13 }}>
+                <span>标记「忘了」 {s.again}</span>
+                <span>用时 {Math.round(s.ms / 1000)} 秒</span>
+              </div>
             </div>
-            <div className="muted" style={{ marginTop: 6 }}>
-              标记"忘了"不是失败——这正是调度器判断"什么时候该再见到你"的依据。
+            <div className="muted" style={{ marginTop: 14, fontSize: 12.5 }}>
+              标记「忘了」不是失败——这正是调度器判断「什么时候该再见到你」的依据。
             </div>
           </div>
         )}
         {queue.length === 0 && !done && <div className="muted">先去课程页生成一些卡片吧。</div>}
-        <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-          <button className="btn btn-primary" onClick={() => nav('/today')}>
-            回到今日
-          </button>
-          <button className="btn" onClick={() => nav('/courses')}>
-            继续生成卡片
-          </button>
+        <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
+          <button className="btn btn-primary" onClick={() => nav('/today')}>回到今日</button>
+          <button className="btn" onClick={() => nav('/courses')}>继续生成卡片</button>
         </div>
       </div>
     )
@@ -105,76 +144,94 @@ export default function ReviewSession() {
     advance()
   }
 
-  const answeredRight = picked !== null && picked === (item.answer_index ?? 0)
-
   return (
     <div className="review-stage">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span className="tag">
-          {idx + 1} / {queue.length}
-        </span>
-        <span className="muted">
-          {item.course_name} · {item.topic_title}
-        </span>
+      <div className="review-top">
+        <div className="review-progress">
+          <span className="review-progress-num">{idx + 1} / {queue.length}</span>
+          <div className="bar">
+            <span className="seg-teal" style={{ width: `${((idx + 1) / queue.length) * 100}%` }} />
+          </div>
+        </div>
+        <span className="review-loc">{item.course_name} · {item.topic_title}</span>
       </div>
 
-      <div className="card" style={{ padding: 28 }}>
-        <div className="tag tag-accent">{item.type === 'basic' ? '回忆' : item.type === 'why' ? '解释' : '选择'}</div>
+      <div className="review-card">
+        <div className="review-kind">
+          <span className="tag tag-plain">
+            {item.type === 'basic' ? '回忆' : item.type === 'why' ? '解释' : '选择'}
+          </span>
+        </div>
+
         <div className="review-front">{item.front}</div>
 
-        {choices && phase === 'front' && (
-          <div style={{ marginTop: 10 }}>
-            {choices.map((c, i) => (
-              <button key={i} className="choice-btn" onClick={() => pickChoice(i)}>
-                {String.fromCharCode(65 + i)}. {c}
-              </button>
-            ))}
+        {choices && (
+          <div style={{ marginTop: 14 }}>
+            {choices.map((c, i) => {
+              const revealed = phase === 'answered'
+              const isRight = i === (item.answer_index ?? 0)
+              const cls = revealed ? (isRight ? 'right' : i === picked ? 'wrong' : 'dim') : ''
+              return (
+                <button
+                  key={i}
+                  className={`choice-btn ${cls}`}
+                  onClick={() => !revealed && pickChoice(i)}
+                >
+                  <span className="choice-key">{i + 1}</span>
+                  <span style={{ flex: 1 }}>{c}</span>
+                  {revealed && isRight && <Check size={15} style={{ color: 'var(--green)' }} />}
+                  {revealed && i === picked && !isRight && <X size={15} style={{ color: 'var(--red)' }} />}
+                </button>
+              )
+            })}
           </div>
         )}
 
-        {choices && phase === 'answered' && (
-          <div style={{ marginTop: 10 }}>
-            {choices.map((c, i) => (
-              <button key={i} className={`choice-btn ${i === (item.answer_index ?? 0) ? 'right' : ''} ${i === picked && !answeredRight ? 'wrong' : ''}`} style={{ cursor: 'default' }}>
-                {String.fromCharCode(65 + i)}. {c}
-              </button>
-            ))}
-          </div>
+        {choices && phase === 'front' && (
+          <div className="review-hint">点击选项，或按 <kbd>1</kbd>-<kbd>4</kbd> 作答</div>
         )}
 
         {!choices && phase === 'front' && (
-          <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => setPhase('answered')}>
-            先回忆，再看答案
-          </button>
+          <>
+            <div style={{ marginTop: 22 }}>
+              <button className="btn btn-primary btn-lg" onClick={() => setPhase('answered')}>
+                显示答案
+              </button>
+            </div>
+            <div className="review-hint">
+              先在脑子里回忆，再按 <kbd>空格</kbd> 核对
+            </div>
+          </>
         )}
 
         {phase === 'answered' && (
           <div>
             <div className="review-back">
-              <span className="muted">答案：</span>
+              <span className="muted">答案</span>
               {item.back}
             </div>
             <div className="explain-box">
-              <b>为什么：</b>
-              {item.explanation}
+              <b>为什么</b>　{item.explanation}
             </div>
             {choices ? (
-              <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={advance}>
-                {idx + 1 >= queue.length ? '完成' : '下一张'}
-              </button>
+              <div style={{ marginTop: 16 }}>
+                <button className="btn btn-primary" onClick={advance}>
+                  {idx + 1 >= queue.length ? '完成' : '下一张'} <kbd style={{ background: '#fff', borderColor: 'var(--line)' }}>⏎</kbd>
+                </button>
+              </div>
             ) : (
               <div className="grade-row">
                 <button className="btn g-again" onClick={() => selfGrade(1)}>
-                  忘了<small>完全想不起来</small>
+                  忘了<small><kbd>1</kbd></small>
                 </button>
                 <button className="btn g-hard" onClick={() => selfGrade(2)}>
-                  想起来了<small>但很费劲</small>
+                  想起来了<small><kbd>2</kbd></small>
                 </button>
                 <button className="btn g-good" onClick={() => selfGrade(3)}>
-                  记得<small>想了一会儿</small>
+                  记得<small><kbd>3</kbd></small>
                 </button>
                 <button className="btn g-easy" onClick={() => selfGrade(4)}>
-                  秒答<small>非常确定</small>
+                  秒答<small><kbd>4</kbd></small>
                 </button>
               </div>
             )}

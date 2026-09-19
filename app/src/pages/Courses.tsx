@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getDb, type CourseRow } from '../db'
 import { genOutline, ApiError } from '../api'
 import { insertOutline } from '../db'
-import { Plus } from 'lucide-react'
+import { Plus, ChevronRight } from 'lucide-react'
 
 interface CourseInfo extends CourseRow {
   topicCount: number
@@ -57,30 +57,39 @@ export default function Courses() {
   return (
     <div>
       <div className="page-title">课程</div>
-      <div className="page-sub">内置课程可直接生成卡片，也可输入任意课程名生成大纲（经云端网关）</div>
+      <div className="page-sub">选择课程生成知识点卡片，或输入课程名从零生成大纲</div>
 
-      {list.map((c) => (
-        <div key={c.id} className="card" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => nav(`/courses/${c.id}`)}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 16 }}>{c.name}</div>
-            <div className="muted">
-              {c.topicCount} 个知识点 · {c.cardCount} 张卡片 {c.kind === 'generated' ? '· 自建' : ''}
+      <div className="rows">
+        {list.map((c) => (
+          <div key={c.id} className="row" onClick={() => nav(`/courses/${c.id}`)}>
+            <div style={{ flex: 1 }}>
+              <div className="row-title">{c.name}</div>
+              <div className="row-meta">
+                {c.topicCount} 个知识点{c.cardCount > 0 && ` · ${c.cardCount} 张卡片`}
+                {c.kind === 'generated' ? ' · 自建' : ''}
+              </div>
             </div>
+            <ChevronRight size={16} style={{ color: 'var(--ink-3)' }} />
           </div>
-          <span className="tag">查看</span>
-        </div>
-      ))}
+        ))}
+      </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
-        <div style={{ fontWeight: 600, marginBottom: 10 }}>新建课程</div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <input className="input" placeholder="课程名，如：机器学习导论、电路原理" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createByName()} />
-          <button className="btn btn-primary" disabled={busy || !newName.trim()} onClick={createByName}>
-            <Plus size={15} /> {busy ? '生成中…' : '生成大纲'}
-          </button>
-        </div>
-        {err && <div className="error-text">{err}</div>}
-        <div className="muted" style={{ marginTop: 8 }}>AI 按课程名生成章节与知识点树；随后在课程详情里逐个知识点生成卡片。</div>
+      <div className="section-label" style={{ marginTop: 28 }}>新建课程</div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <input
+          className="input"
+          placeholder="输入课程名，如：机器学习导论、电路原理"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && createByName()}
+        />
+        <button className="btn btn-primary" disabled={busy || !newName.trim()} onClick={createByName}>
+          <Plus size={14} /> {busy ? '生成中…' : '生成大纲'}
+        </button>
+      </div>
+      {err && <div className="error-text">{err}</div>}
+      <div className="muted" style={{ marginTop: 8 }}>
+        AI 按课程名生成章节与知识点树，之后在课程详情里逐个知识点生成卡片。
       </div>
     </div>
   )

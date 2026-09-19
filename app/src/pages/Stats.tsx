@@ -8,7 +8,6 @@ interface Stats {
   cards: number
   mastered: number
   reviewing: number
-  newCards: number
   todayReviews: number
   week: { day: string; n: number }[]
 }
@@ -42,7 +41,6 @@ export default function Stats() {
         cards: cards[0]?.n || 0,
         mastered: mastered[0]?.n || 0,
         reviewing: (reviewing[0]?.n || 0) + (learning[0]?.n || 0),
-        newCards: cards[0]?.n || 0,
         todayReviews: today[0]?.n || 0,
         week,
       })
@@ -56,54 +54,58 @@ export default function Stats() {
 
   if (!s) return <div className="muted">载入中…</div>
   const maxWeek = Math.max(1, ...s.week.map((w) => w.n))
+  const pct = me ? Math.min(100, (me.used_tokens / me.quota_tokens) * 100) : 0
 
   return (
     <div>
       <div className="page-title">统计</div>
-      <div className="page-sub">看"记住了多少"，而不是"学了多久"</div>
+      <div className="page-sub">看「记住了多少」，而不是「学了多久」</div>
 
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-        {[
-          { label: '课程', v: s.courses },
-          { label: '知识点', v: s.topics },
-          { label: '卡片', v: s.cards },
-          { label: '已掌握', v: s.mastered },
-          { label: '巩固中', v: s.reviewing },
-          { label: '今日已复习', v: s.todayReviews },
-        ].map((x) => (
-          <div key={x.label} className="card" style={{ flex: 1, minWidth: 120, textAlign: 'center', padding: 16 }}>
-            <div style={{ fontSize: 26, fontWeight: 700 }}>{x.v}</div>
-            <div className="muted">{x.label}</div>
-          </div>
-        ))}
+      <div className="metric-row">
+        <div className="metric"><b>{s.todayReviews}</b><span>今日已复习</span></div>
+        <div className="metric metric-hl"><b>{s.mastered}</b><span>已掌握</span></div>
+        <div className="metric"><b>{s.reviewing}</b><span>巩固中</span></div>
+        <div className="metric"><b>{s.cards}</b><span>卡片总数</span></div>
+      </div>
+      <div className="muted" style={{ marginBottom: 20 }}>
+        共 {s.courses} 门课程 · {s.topics} 个知识点。「已掌握」指跨多次复习后稳定保持（FSRS 稳定期 ≥ 21 天）。
       </div>
 
       <div className="card">
-        <div style={{ fontWeight: 600, marginBottom: 12 }}>近 7 天复习量</div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 120 }}>
+        <div className="section-label">近 7 天复习量</div>
+        <div className="chart-values">
           {s.week.map((w) => (
-            <div key={w.day} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ background: 'var(--primary)', borderRadius: 4, height: `${(w.n / maxWeek) * 90 + 4}px`, marginBottom: 6 }} />
-              <div className="muted" style={{ fontSize: 11 }}>
-                {w.day}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600 }}>{w.n}</div>
+            <span key={w.day} className="stat-value">{w.n > 0 ? w.n : ''}</span>
+          ))}
+        </div>
+        <div className="chart">
+          {s.week.map((w) => (
+            <div key={w.day} className={`chart-col${w.n === 0 ? ' zero' : ''}`}>
+              <i style={w.n > 0 ? { height: `${Math.max(6, (w.n / maxWeek) * 100)}%` } : undefined} />
             </div>
+          ))}
+        </div>
+        <div className="chart-labels">
+          {s.week.map((w) => (
+            <span key={w.day}>{w.day}</span>
           ))}
         </div>
       </div>
 
       <div className="card">
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>生成额度</div>
+        <div className="section-label">生成额度</div>
         {me ? (
-          <div>
-            <div className="muted" style={{ marginBottom: 8 }}>
-              本月已用 {me.used_tokens} / {me.quota_tokens} tokens
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span className="muted">本月已用</span>
+              <span className="stat-value" style={{ fontSize: 13, fontWeight: 600 }}>
+                {me.used_tokens.toLocaleString()} / {me.quota_tokens.toLocaleString()} tokens（{pct.toFixed(1)}%）
+              </span>
             </div>
-            <div className="bar">
-              <span className="seg-accent" style={{ width: `${Math.min(100, (me.used_tokens / me.quota_tokens) * 100)}%` }} />
+            <div className="bar" style={{ height: 6 }}>
+              <span className="seg-amber" style={{ width: `${Math.max(0.5, pct)}%` }} />
             </div>
-          </div>
+          </>
         ) : (
           <div className="muted">离线中，无法获取云端额度。</div>
         )}
