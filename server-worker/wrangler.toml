@@ -1,14 +1,14 @@
 name = "zenew-gateway"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
-account_id = "REPLACE_AFTER_LOGIN"          # wrangler login 后自动填或手填
+account_id = "aee3e69fc4a6677186fe28bfb7cd4a9c"  # Lixingli1024@qq.com's Account
 workers_dev = true                          # 先开 workers.dev 试用域名
 
 # ---------- D1 数据库（wrangler d1 create zenew 后把 database_id 粘这里）----------
 [[d1_databases]]
 binding = "DB"
 database_name = "zenew"
-database_id = "REPLACE_AFTER_D1_CREATE"
+database_id = "a996a6bf-27d5-42f3-8505-83110b4c2113"
 
 # ---------- 变量（非密钥）----------
 [vars]
@@ -25,7 +25,7 @@ PBKDF2_ITERATIONS = "10000"
 # JWT_SECRET       → wrangler secret put JWT_SECRET
 # LLM_API_KEY      → wrangler secret put LLM_API_KEY
 
-# ---------- 自定义域名（wrangler login 后取消注释部署）----------
-# [[routes]]
-# pattern = "zenew-api.lxlrwxs.top"
-# custom_domain = true
+# ---------- 自定义域名 ----------
+[[routes]]
+pattern = "zenew-api.lxlrwxs.top"
+custom_domain = true

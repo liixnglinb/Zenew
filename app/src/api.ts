@@ -1,6 +1,8 @@
 // 云端 API 客户端：所有 LLM 生成请求都经服务端网关，客户端不接触任何 key
+// 默认走公网网关（Cloudflare Workers）；本地开发可在设置页改回 http://127.0.0.1:8765
+const DEFAULT_SERVER = 'https://zenew-api.lxlrwxs.top'
 export function getServer(): string {
-  return localStorage.getItem('zenew_server') || 'http://127.0.0.1:8765'
+  return localStorage.getItem('zenew_server') || DEFAULT_SERVER
 }
 export function setServer(url: string) {
   localStorage.setItem('zenew_server', url.replace(/\/+$/, ''))
