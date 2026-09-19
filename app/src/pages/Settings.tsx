@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { getServer, setServer, fetchMe, redeemCode, ApiError, type Me } from '../api'
 import { checkUpdate, applyUpdate, type UpdateInfo } from '../updater'
 import { isTauri } from '../db'
@@ -112,6 +113,21 @@ export default function SettingsPage() {
           </div>
           <span className="tag tag-mono">{me ? `免费剩 ${(free / 10000).toFixed(1)} 万` : '—'}</span>
         </div>
+        <div className="settings-row">
+          <div style={{ flex: 1 }}>
+            <div className="row-title" style={{ fontWeight: 500, fontSize: 13.5 }}>购买额度</div>
+            <div className="row-meta" style={{ fontFamily: 'var(--mono)', fontSize: 10.5 }}>
+              网页支付后自动到账，或领取卡密在此兑换
+            </div>
+          </div>
+          <button className="btn btn-sm" onClick={() => { fetchMe().then(setMe).catch(() => {}) }} title="刷新余额">
+            刷新
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => openUrl('https://lxlrwxs.top/zenew/buy/').catch(() => setRedeemMsg('打开浏览器失败，请手动访问 lxlrwxs.top/zenew/buy/'))}>
+            去购买
+          </button>
+        </div>
+
         <div className="settings-row">
           <div style={{ flex: 1 }}>
             <div className="row-title" style={{ fontWeight: 500, fontSize: 13.5 }}>兑换充值码</div>

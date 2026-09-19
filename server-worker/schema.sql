@@ -51,3 +51,20 @@ CREATE TABLE IF NOT EXISTS balances (
   tokens INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL
 );
+
+-- 网页下单（收款页）：用户下单 → 转账 → 管理员确认 → 自动发码/充值
+CREATE TABLE IF NOT EXISTS orders (
+  order_no TEXT PRIMARY KEY,
+  tier INTEGER NOT NULL,
+  price_cny REAL NOT NULL,
+  tokens INTEGER NOT NULL,
+  email TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',   -- pending | paid
+  code TEXT,                                 -- 确认后签发的兑换码
+  credited INTEGER NOT NULL DEFAULT 0,       -- 1=已直接充入账号邮箱对应的账户
+  created_at TEXT NOT NULL,
+  paid_at TEXT,
+  note TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status, created_at);

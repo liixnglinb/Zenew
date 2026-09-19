@@ -21,6 +21,7 @@ export interface Env {
   GLOBAL_MONTHLY_TOKENS: string
   RATE_PER_MIN: string
   PBKDF2_ITERATIONS: string
+  ADMIN_TOKEN: string
 }
 
 type Vars = { userId: number; email: string }
@@ -224,28 +225,75 @@ function extractJson(text: string): any {
   return JSON.parse(m[0])
 }
 
-// ---------- 卡片质检（与 FastAPI 版规则一致）----------
-function lintCards(cards: any[]): { ok: any[]; bad: any[] } {
+// ---------- 卡片质检 v2（按学习科学规则拒收劣质卡）----------
+// 依据：原子性/最小信息（SuperMemo 20 条规则）、P1 提取练习、P5 详细反馈、P6 自我解释、P7 变式迁移
+const LIST_WORDS = /哪些|哪几种|包括|列举|有哪|以下|下列.*正确的是/
+const VAGUE_WORDS = /请简述|谈谈你的|论述|试述|总结一下|你认为/
+
+function normText(s: string) {
+  return s.replace(/[\s，。？?！!、；;：:"'（）()【】\[\]]/g, '').toLowerCase()
+}
+/** 粗查重：二元组 Jaccard（比字符集更适合中文短句，减少误杀） */
+function bigrams(s: string): Set<string> {
+  const t = normText(s)
+  const out = new Set<string>()
+  for (let i = 0; i < t.length - 1; i++) out.add(t.slice(i, i + 2))
+  if (!out.size && t) out.add(t)
+  return out
+}
+function similar(a: string, b: string) {
+  const A = bigrams(a)
+  const B = bigrams(b)
+  if (!A.size || !B.size) return 0
+  let inter = 0
+  for (const g of A) if (B.has(g)) inter++
+  return inter / (A.size + B.size - inter)
+}
+
+function lintCards(cards: any[], avoid: string[] = []): { ok: any[]; bad: any[] } {
   const ok: any[] = []
   const bad: any[] = []
+  const seen: string[] = [...avoid]
   for (const c of cards) {
     const front = String(c?.front ?? '').trim()
     const back = String(c?.back ?? '').trim()
+    const explain = String(c?.explanation ?? '').trim()
     const type = c?.type ?? 'basic'
     const reasons: string[] = []
+
+    // 结构性
     if (!front || !back) reasons.push('空题面或空答案')
-    if (!String(c?.explanation ?? '').trim()) reasons.push('缺少解释')
-    if (front.length > 100) reasons.push('题面过长（>100 字）')
+    if (!explain) reasons.push('缺少解释（P5：必须给"为什么"）')
     if (front === back) reasons.push('题面与答案相同')
+
+    // 原子性 / 最小信息原则
+    if (front.length > 60) reasons.push('题面过长（>60 字，应拆卡）')
+    if (back.length > 100) reasons.push('答案过长（>100 字，不是原子卡）')
+    if (front.split('？').length - 1 > 1 || front.split('?').length - 1 > 1) reasons.push('一题多问')
+    if (LIST_WORDS.test(front) && /[、,，]/.test(back)) reasons.push('列举式卡片（应拆成多张单点卡）')
+    if (VAGUE_WORDS.test(front)) reasons.push('开放式题面（无法作为提取线索）')
+
+    // 选择题：选项质量
     if (type === 'choice') {
-      const ch = c?.choices ?? []
-      if (!Array.isArray(ch) || ch.length !== 4 || !Number.isInteger(c?.answer_index) || c.answer_index < 0 || c.answer_index > 3) {
-        reasons.push('选择题选项/答案无效')
+      const ch: string[] = Array.isArray(c?.choices) ? c!.choices.map((x: any) => String(x)) : []
+      if (ch.length !== 4) reasons.push('选择题选项数不为 4')
+      if (!Number.isInteger(c?.answer_index) || c.answer_index < 0 || c.answer_index > 3) reasons.push('选择题答案下标无效')
+      if (new Set(ch.map((x) => normText(x))).size !== ch.length) reasons.push('选择题选项重复')
+      if (ch.length) {
+        const lens = ch.map((x) => x.length).filter((n) => n > 0)
+        if (lens.length === 4 && Math.max(...lens) / Math.max(1, Math.min(...lens)) > 3.5) reasons.push('选择题选项长度悬殊（答案可被猜出）')
       }
     }
-    if (front.split('？').length - 1 > 1) reasons.push('一题多问')
+
+    // 查重：与已存在卡片（或本批已通过卡片）过近（二元组 Jaccard ≥ 0.72）
+    const dupOf = seen.find((s) => s && similar(s, front) >= 0.72)
+    if (dupOf) reasons.push('与已有卡片重复')
+
     if (reasons.length) bad.push({ ...c, reject: reasons })
-    else ok.push(c)
+    else {
+      ok.push(c)
+      seen.push(front)
+    }
   }
   return { ok, bad }
 }
@@ -370,10 +418,13 @@ app.post('/gen/outline', auth, async (c) => {
     content = JSON.stringify({ chapters })
     usage = { prompt_tokens: 100, completion_tokens: 200 }
   } else {
-    const system = '你是大学课程大纲专家。只输出 JSON。'
+    const system =
+      '你是大学课程教学大纲专家。要求覆盖该课程在标准教材中的全部知识点，不遗漏；' +
+      '知识点要写成原子粒度（一个概念/一条定理/一种方法），不要用"概述""简介"这类笼统标题。只输出 JSON。'
     const userPrompt =
-      `为大学课程《${title}》生成教学大纲，${numChapters} 章。` +
-      '输出 JSON：{"chapters":[{"title":"章标题","topics":["知识点1","知识点2"]}]}，每章 3-6 个知识点。'
+      `为大学课程《${title}》生成完整教学大纲，共 ${numChapters} 章，按教学先后顺序排列。` +
+      '每章给出 4-8 个知识点（宁细勿粗，覆盖该章全部考点）。' +
+      '输出 JSON：{"chapters":[{"title":"章标题","topics":["知识点1","知识点2"]}]}'
     const r = await llmChat(c.env, system, userPrompt)
     content = r.content
     usage = r.usage
@@ -399,6 +450,10 @@ app.post('/gen/cards', auth, async (c) => {
   const types: string[] = (Array.isArray(body.types) ? body.types : []).filter((t: string) => allowed.includes(t))
   const useTypes = types.length ? types : ['basic']
   const context = typeof body.context === 'string' ? body.context.slice(0, 4000) : ''
+  const chapter = typeof body.chapter === 'string' ? body.chapter.slice(0, 120) : ''
+  const course = typeof body.course === 'string' ? body.course.slice(0, 120) : ''
+  // 已有卡片题面（查重 + 让模型换个角度出题）
+  const avoid: string[] = (Array.isArray(body.avoid) ? body.avoid : []).filter((s: any) => typeof s === 'string').slice(0, 40)
 
   let content: string
   let usage: Usage
@@ -420,14 +475,27 @@ app.post('/gen/cards', auth, async (c) => {
     content = JSON.stringify({ cards })
     usage = { prompt_tokens: 100, completion_tokens: 200 }
   } else {
+    // 提示词 v2：按学习科学设计（P1 提取练习 / P5 详细反馈 / P6 自我解释 / P7 变式迁移 + 原子性）
     const system =
-      '你是精通学习科学的大学助教，依据提取练习原理出卡。每张卡只考一个点；' +
-      'front 是单一问句；back 简洁；explanation 必填（为什么/常见错误）；不要出现 emoji。只输出 JSON。'
+      '你是精通学习科学与认知心理学的大学助教，为学生编写"提取练习"卡片。严格遵守：\n' +
+      '1) 原子性：每张卡只考一个最小知识点；宁可少出，不许把多个点塞进一张卡。\n' +
+      '2) 题面（front）必须是单一、自包含的问句（≤40 字），不能依赖上文、不能出现"下列/以下/上述"。\n' +
+      '3) 答案（back）尽量短（≤60 字）；答案长说明这道题该拆成多张卡。\n' +
+      '4) 严禁列举式卡（如"有哪些/包括哪些"要求列一串）；应拆成一卡一义。\n' +
+      '5) 禁止开放式作文题（"请简述/论述/谈谈"）——那不是提取线索。\n' +
+      '6) explanation 必填：说明"为什么"以及"常见错误/易混点"（这是反馈，缺了等于白练）。\n' +
+      '7) 类型各有分工：basic=定义/条件/结论本身；why=原理与理由（自我解释）；choice=辨析易混，4 个选项必须是同层次的常见误解，不能有一个明显正确或三个明显荒谬。\n' +
+      '8) 数学/计算类知识点要出"做题式"卡（给条件求结果），不要出"背公式"卡。\n' +
+      '9) 不出重复卡；若给了"已有卡片"，换角度考同一知识点的另一面。\n' +
+      '10) 不出现 emoji、不写客套话。只输出 JSON。'
     const userPrompt =
-      `知识点：《${topicTitle}》` +
-      `\n参考材料片段：\n${context || '（无，凭可靠学科知识生成）'}` +
-      `\n生成 ${n} 张卡片，类型从 ${useTypes.join(',')} 中选择，choice 卡需 4 个选项。` +
-      '输出 JSON：{"cards":[{"type":"basic|why|choice","front":"...","back":"...","explanation":"...","choices":["A","B","C","D"],"answer_index":0}]}' +
+      (course ? `课程：《${course}》\n` : '') +
+      (chapter ? `所在章节：${chapter}\n` : '') +
+      `知识点：《${topicTitle}》\n` +
+      (context ? `参考材料片段：\n${context}\n` : '') +
+      (avoid.length ? `已有卡片（不要重复这些角度）：\n- ${avoid.slice(0, 15).join('\n- ')}\n` : '') +
+      `请生成 ${n} 张卡片，类型从 ${useTypes.join('/')} 中选（尽量混合，让用户既考概念也考辨析），choice 卡 4 个选项。\n` +
+      '输出 JSON：{"cards":[{"type":"basic|why|choice","front":"单一问句","back":"简短答案","explanation":"为什么+常见错误","choices":["A","B","C","D"],"answer_index":0}]}' +
       '（choices/answer_index 仅 choice 卡需要）'
     const r = await llmChat(c.env, system, userPrompt)
     content = r.content
@@ -436,8 +504,122 @@ app.post('/gen/cards', auth, async (c) => {
   await logUsage(c.env, userId, '/gen/cards', usage)
   await settleUsage(c.env, userId, freeUsedBefore, (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0))
   const data = extractJson(content)
-  const { ok, bad } = lintCards(Array.isArray(data.cards) ? data.cards : [])
+  const { ok, bad } = lintCards(Array.isArray(data.cards) ? data.cards : [], avoid)
   return c.json({ cards: ok, rejected: bad, provider: c.env.LLM_PROVIDER, usage })
+})
+
+// ---------- 收款下单（网页购买用；无需登录，凭订单号查状态）----------
+const TIERS: Record<number, { price: number; tokens: number }> = {
+  1: { price: 3.9, tokens: 600_000 },
+  2: { price: 9.9, tokens: 1_700_000 },
+  3: { price: 19.9, tokens: 3_700_000 },
+  4: { price: 39.9, tokens: 7_800_000 },
+}
+
+function newOrderNo() {
+  const d = new Date()
+  const ymd = `${String(d.getUTCFullYear()).slice(2)}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const rnd = crypto.getRandomValues(new Uint8Array(6))
+  let tail = ''
+  for (const b of rnd) tail += alphabet[b % alphabet.length]
+  return `ZW${ymd}${tail}`
+}
+
+function newTopupCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const blk = () => {
+    const r = crypto.getRandomValues(new Uint8Array(4))
+    let s = ''
+    for (const b of r) s += alphabet[b % alphabet.length]
+    return s
+  }
+  return `ZC-${blk()}-${blk()}`
+}
+
+app.post('/billing/order', async (c) => {
+  const body: any = await c.req.json().catch(() => ({}))
+  const tier = parseInt(body.tier ?? '', 10)
+  if (!TIERS[tier]) return err(c, 400, '档位无效')
+  const email = String(body.email ?? '').trim().toLowerCase().slice(0, 120)
+  const orderNo = newOrderNo()
+  const t = TIERS[tier]
+  await c.env.DB.prepare(
+    'INSERT INTO orders(order_no,tier,price_cny,tokens,email,status,created_at) VALUES(?,?,?,?,?,?,?)'
+  )
+    .bind(orderNo, tier, t.price, t.tokens, email || null, 'pending', nowIso())
+    .run()
+  return c.json({
+    order_no: orderNo,
+    tier,
+    price_cny: t.price,
+    tokens: t.tokens,
+    status: 'pending',
+    pay_remark: orderNo,
+    expires_hint: '请在 24 小时内完成转账（备注订单号），确认后自动到账',
+  })
+})
+
+app.get('/billing/order/:no', async (c) => {
+  const no = String(c.req.param('no') || '').trim().toUpperCase()
+  const row = await c.env.DB.prepare(
+    'SELECT order_no,tier,price_cny,tokens,email,status,code,credited,created_at,paid_at FROM orders WHERE order_no=?'
+  )
+    .bind(no)
+    .first<any>()
+  if (!row) return err(c, 404, '订单不存在')
+  return c.json(row)
+})
+
+// ---------- 管理端（x-admin-token，收款确认）----------
+async function requireAdmin(c: any): Promise<boolean> {
+  const token = c.req.header('x-admin-token') || ''
+  const expected = c.env.ADMIN_TOKEN || ''
+  return !!expected && token === expected
+}
+
+app.get('/admin/orders', async (c) => {
+  if (!(await requireAdmin(c))) return err(c, 401, '管理口令无效')
+  const status = c.req.query('status') || 'pending'
+  const rows = await c.env.DB.prepare(
+    'SELECT order_no,tier,price_cny,tokens,email,status,code,credited,created_at,paid_at FROM orders WHERE status=? ORDER BY created_at DESC LIMIT 100'
+  )
+    .bind(status)
+    .all()
+  return c.json({ orders: rows.results ?? [] })
+})
+
+app.post('/admin/orders/:no/confirm', async (c) => {
+  if (!(await requireAdmin(c))) return err(c, 401, '管理口令无效')
+  const no = String(c.req.param('no') || '').trim().toUpperCase()
+  const body: any = await c.req.json().catch(() => ({}))
+  const row = await c.env.DB.prepare('SELECT * FROM orders WHERE order_no=?').bind(no).first<any>()
+  if (!row) return err(c, 404, '订单不存在')
+  if (row.status === 'paid') return c.json({ ok: true, already: true, code: row.code, credited: !!row.credited })
+
+  // 1) 优先直接充入邮箱对应的账号（用户无需手动兑换）
+  let credited = 0
+  let code: string | null = null
+  if (row.email) {
+    const user = await c.env.DB.prepare('SELECT id FROM users WHERE email=?').bind(row.email).first<{ id: number }>()
+    if (user) {
+      await addBalance(c.env, user.id, row.tokens)
+      credited = 1
+    }
+  }
+  // 2) 没有账号（或未填邮箱）→ 签发兑换码，用户自己在软件里兑换
+  if (!credited) {
+    code = newTopupCode()
+    await c.env.DB.prepare(
+      'INSERT INTO topup_codes(code,tier,price_cny,tokens,note,created_at) VALUES(?,?,?,?,?,?)'
+    )
+      .bind(code, row.tier, row.price_cny, row.tokens, `订单 ${no}`, nowIso())
+      .run()
+  }
+  await c.env.DB.prepare('UPDATE orders SET status=?, paid_at=?, code=?, credited=?, note=? WHERE order_no=?')
+    .bind('paid', nowIso(), code, credited, String(body.note ?? '').slice(0, 200), no)
+    .run()
+  return c.json({ ok: true, order_no: no, credited: !!credited, code })
 })
 
 app.notFound((c) => c.json({ detail: '接口不存在' }, 404))

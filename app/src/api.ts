@@ -63,8 +63,17 @@ export interface GenCard {
 export const genOutline = (title: string, num_chapters = 5) =>
   api('/gen/outline', { method: 'POST', body: { title, num_chapters } })
 
-export const genCards = (topic_title: string, context: string | null, n = 5, types: string[] = ['basic', 'why', 'choice']) =>
-  api('/gen/cards', { method: 'POST', body: { topic_title, context, n, types } })
+export const genCards = (
+  topic_title: string,
+  context: string | null,
+  n = 5,
+  types: string[] = ['basic', 'why', 'choice'],
+  extra: { course?: string; chapter?: string; avoid?: string[] } = {}
+) => api('/gen/cards', { method: 'POST', body: { topic_title, context, n, types, ...extra } })
+
+/** 收款：网页下单（无需登录） */
+export const createOrder = (tier: number, email?: string): Promise<{ order_no: string; tier: number; price_cny: number; tokens: number; status: string }> =>
+  api('/billing/order', { method: 'POST', body: { tier, email }, auth: false })
 
 /** 充值：卡密兑换（额度进入余额，不随月份清零） */
 export const redeemCode = (code: string): Promise<{ ok: boolean; tier: number; price_cny: number; added_tokens: number; balance_tokens: number }> =>
