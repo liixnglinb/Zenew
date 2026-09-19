@@ -432,7 +432,23 @@ app.post('/gen/outline', auth, async (c) => {
   await logUsage(c.env, userId, '/gen/outline', usage)
   await settleUsage(c.env, userId, freeUsedBefore, (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0))
   const data = extractJson(content)
-  return c.json({ outline: data.chapters ?? [], provider: c.env.LLM_PROVIDER, usage })
+  // 去重：同一课程内重复/近似的知识点合并（模型在细粒度下会偶发重复）
+  const seenTitles: string[] = []
+  const outline = (Array.isArray(data.chapters) ? data.chapters : [])
+    .map((ch: any) => {
+      const topics = (Array.isArray(ch?.topics) ? ch.topics : [])
+        .map((t: any) => String(t ?? '').trim())
+        .filter((t: string) => {
+          if (!t) return false
+          const dup = seenTitles.some((s) => similar(s, t) >= 0.85)
+          if (dup) return false
+          seenTitles.push(t)
+          return true
+        })
+      return { title: String(ch?.title ?? '').trim(), topics }
+    })
+    .filter((ch: any) => ch.title && ch.topics.length)
+  return c.json({ outline, provider: c.env.LLM_PROVIDER, usage })
 })
 
 app.post('/gen/cards', auth, async (c) => {
