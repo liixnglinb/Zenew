@@ -1,0 +1,31 @@
+name = "zenew-gateway"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+account_id = "REPLACE_AFTER_LOGIN"          # wrangler login 后自动填或手填
+workers_dev = true                          # 先开 workers.dev 试用域名
+
+# ---------- D1 数据库（wrangler d1 create zenew 后把 database_id 粘这里）----------
+[[d1_databases]]
+binding = "DB"
+database_name = "zenew"
+database_id = "REPLACE_AFTER_D1_CREATE"
+
+# ---------- 变量（非密钥）----------
+[vars]
+FREE_MONTHLY_TOKENS = "200000"
+RATE_PER_MIN = "10"
+LLM_PROVIDER = "mock"                       # mock | openai
+LLM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+LLM_MODEL = "qwen-flash"
+# Workers Free 套餐 CPU 上限 10ms：实测 PBKDF2 200k≈30ms 会超限，故默认降到 10000（≈5ms）
+# 升级 Workers Paid（$5/月，30s CPU）后可改回 200000
+PBKDF2_ITERATIONS = "10000"
+
+# ---------- 密钥（用 wrangler secret put 写入，勿写在本文件）----------
+# JWT_SECRET       → wrangler secret put JWT_SECRET
+# LLM_API_KEY      → wrangler secret put LLM_API_KEY
+
+# ---------- 自定义域名（wrangler login 后取消注释部署）----------
+# [[routes]]
+# pattern = "zenew-api.lxlrwxs.top"
+# custom_domain = true

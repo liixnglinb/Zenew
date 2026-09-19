@@ -35,9 +35,10 @@ Windows 10/11 · 安装一次，之后软件内自动更新（免安装、静默
 
 ```
 app/            Tauri 桌面应用（src/ 前端，src-tauri/ Rust 壳）
-server/         FastAPI 云端网关（账号 / LLM 代理 / 额度）
+server/         FastAPI 云端网关（本地开发 / 自建服务器部署）
+server-worker/  Cloudflare Workers 版网关（Hono + D1，公网部署用，功能对齐 server/）
 docs/           M1 构建规格、M2 更新器设计
-scripts/        发布与验收脚本（publish-release.bat 一键发版）
+scripts/        发布与验收脚本（publish-release.sh 一键发版）
 ```
 
 ## 开发 Development
