@@ -8,3 +8,7 @@ server/data/
 .env
 __pycache__/
 .DS_Store
+
+# 更新签名私钥与本地构建产物（严禁入库）
+.tauri/
+release/
