@@ -1,0 +1,14 @@
+const list = await (await fetch('http://127.0.0.1:9222/json/list')).json();
+console.log('页面:', list.filter(t=>t.type==='page').map(t=>t.url));
+const page = list.find((t) => t.type === 'page');
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+await new Promise((r, j) => { ws.addEventListener('open', r); ws.addEventListener('error', j); });
+let id = 0; const pending = new Map();
+ws.addEventListener('message', (ev) => { const m = JSON.parse(ev.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } });
+const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
+const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
+console.log('hash:', await evalJs('location.hash'));
+console.log('root 长度:', await evalJs('document.getElementById("root").innerHTML.length'));
+console.log('正文:', (await evalJs('document.body.innerText')||'').slice(0,300).replace(/\n+/g,' | '));
+console.log('token:', await evalJs('!!localStorage.getItem("zenew_token")'));
+process.exit(0);

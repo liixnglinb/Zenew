@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Zenew",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "identifier": "com.zenew.app",
   "build": {
     "frontendDist": "../dist",
@@ -40,7 +40,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0ODRBNkNCNjQwNDI3QjkKUldTNUp3Umt5NmFFOUhjUEdnb01EN3k1d0phYW9oeDd0VkJBR0J5RTdBTThCVjF5T1dMbTZpd3MK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxRDhBNDZBREIwQUU2OApSV1JvcnJDdFJvb2RCK1FseFcxRDFBaTVpaWQ2SnZ3RWZKS3ZrTjFnRGZ2K0x0aFVZNUZVYTRCNAo=",
       "endpoints": [
         "https://github.com/liixnglinb/Zenew/releases/latest/download/latest.json"
       ]

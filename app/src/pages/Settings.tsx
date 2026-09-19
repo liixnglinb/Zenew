@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
+import { getVersion } from '@tauri-apps/api/app'
 import { getServer, setServer } from '../api'
 import { checkUpdate, applyUpdate, type UpdateInfo } from '../updater'
-
-const APP_VERSION = 'v0.1.1'
+import { isTauri } from '../db'
 
 export default function SettingsPage() {
   const [server, setServerUrl] = useState(getServer())
@@ -12,9 +12,12 @@ export default function SettingsPage() {
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
   const [progress, setProgress] = useState<number | null>(null)
   const [msg, setMsg] = useState('')
+  const [ver, setVer] = useState('')
 
-  // 启动即静默检查一次
+  // 启动即静默检查一次 + 读取真实版本号（更新后能反映新二进制）
   useEffect(() => {
+    if (isTauri()) getVersion().then((v) => setVer('v' + v)).catch(() => setVer('dev'))
+    else setVer('dev')
     checkUpdate().then((u) => {
       if (u) setUpdate({ version: u.version, notes: u.body ?? null })
     })
@@ -114,7 +117,7 @@ export default function SettingsPage() {
           <div style={{ flex: 1 }}>
             <div className="row-title" style={{ fontWeight: 500, fontSize: 13.5 }}>知新 Zenew</div>
           </div>
-          <span className="tag tag-mono">{APP_VERSION} · FSRS</span>
+          <span className="tag tag-mono">{ver || '…'} · FSRS</span>
         </div>
       </div>
     </div>

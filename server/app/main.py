@@ -48,7 +48,13 @@ RATE_PER_MIN = int(os.environ.get("RATE_PER_MIN", "10"))
 app = FastAPI(title="Zenew Server", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5199", "http://127.0.0.1:5199", "tauri://localhost", "https://tauri.localhost", "http://localhost:*", "http://127.0.0.1:*"],
+    allow_origins=[
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:5199", "http://127.0.0.1:5199",
+        # Tauri：dev 用 http://localhost:5173；打包版 WebView 源是 http(s)://tauri.localhost
+        "tauri://localhost", "https://tauri.localhost", "http://tauri.localhost",
+        "http://localhost:*", "http://127.0.0.1:*",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )

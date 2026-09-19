@@ -1,0 +1,21 @@
+// 读取已安装 App 的设置页状态（版本号 / 更新提示）
+import fs from 'fs';
+const list = await (await fetch('http://127.0.0.1:9222/json/list')).json();
+const page = list.find((t) => t.type === 'page');
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+await new Promise((r, j) => { ws.addEventListener('open', r); ws.addEventListener('error', j); });
+let id = 0; const pending = new Map();
+ws.addEventListener('message', (ev) => { const m = JSON.parse(ev.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } });
+const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
+const evalJs = async (expr) => (await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+await send('Page.enable');
+await evalJs("location.hash='#/settings'");
+await sleep(2500);
+console.log('版本标签:', await evalJs("(document.querySelector('.tag-mono')||{}).textContent"));
+console.log('更新区文案:', await evalJs("(()=>{const rows=[...document.querySelectorAll('.settings-row')];const r=rows.find(x=>x.textContent.includes('检查更新'));return r?r.textContent.replace(/\s+/g,' '):'(未找到)'})()"));
+console.log('更新横幅:', await evalJs("(()=>{const b=document.querySelector('.update-banner');return b?b.textContent.replace(/\s+/g,' '):'(无)'})()"));
+const shot = await send('Page.captureScreenshot', { format: 'png' });
+fs.writeFileSync('D:/Zenew/docs/screenshots/upd-before.png', Buffer.from(shot.result.data, 'base64'));
+console.log('截图: docs/screenshots/upd-before.png');
+process.exit(0);
