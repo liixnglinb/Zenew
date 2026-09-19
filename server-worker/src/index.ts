@@ -222,17 +222,35 @@ app.post('/auth/register', async (c) => {
   const body: any = await c.req.json().catch(() => ({}))
   const email = String(body.email ?? '').trim().toLowerCase()
   const password = String(body.password ?? '')
+  const inviteCode = String(body.invite_code ?? '').trim().toUpperCase()
   if (!EMAIL_RE.test(email)) return err(c, 400, '邮箱格式不正确')
   if (password.length < 8) return err(c, 400, '密码至少 8 位')
   const exists = await c.env.DB.prepare('SELECT 1 FROM users WHERE email=?').bind(email).first()
   if (exists) return err(c, 400, '该邮箱已注册')
+
+  // 邀请码：注册的唯一入口（防止他人免费使用）
+  if (!inviteCode) return err(c, 400, '需要邀请码')
+  const claimed = await c.env.DB.prepare(
+    'UPDATE invite_codes SET used_by_email=?, used_at=? WHERE code=? AND used_by_email IS NULL'
+  )
+    .bind(email, nowIso(), inviteCode)
+    .run()
+  if (!claimed.meta.changes) return err(c, 403, '邀请码无效或已被使用')
+
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const saltHex = hex(salt.buffer)
   const pwHash = await hashPw(password, saltHex, iterations(c.env))
-  const res = await c.env.DB.prepare('INSERT INTO users(email,pw_hash,salt,created_at) VALUES(?,?,?,?)')
-    .bind(email, pwHash, saltHex, nowIso())
-    .run()
-  const userId = Number(res.meta.last_row_id)
+  let userId: number
+  try {
+    const res = await c.env.DB.prepare('INSERT INTO users(email,pw_hash,salt,created_at) VALUES(?,?,?,?)')
+      .bind(email, pwHash, saltHex, nowIso())
+      .run()
+    userId = Number(res.meta.last_row_id)
+  } catch (e) {
+    // 建号失败 → 释放邀请码，避免白白消耗
+    await c.env.DB.prepare('UPDATE invite_codes SET used_by_email=NULL, used_at=NULL WHERE code=?').bind(inviteCode).run()
+    throw e
+  }
   return c.json({ token: await makeToken(c.env, userId, email), email })
 })
 

@@ -5,6 +5,7 @@ export default function Login({ onLogin }: { onLogin: (me: { email: string }) =>
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [invite, setInvite] = useState('')
   const [server, setServerUrl] = useState(getServer())
   const [showServer, setShowServer] = useState(false)
   const [err, setErr] = useState('')
@@ -16,7 +17,7 @@ export default function Login({ onLogin }: { onLogin: (me: { email: string }) =>
     try {
       setServer(server)
       const fn = mode === 'login' ? login : register
-      const r = await fn(email.trim(), password)
+      const r = await fn(email.trim(), password, invite.trim())
       localStorage.setItem('zenew_token', r.token)
       onLogin({ email: r.email })
     } catch (e) {
@@ -48,8 +49,19 @@ export default function Login({ onLogin }: { onLogin: (me: { email: string }) =>
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
+          {mode === 'register' && (
+            <div style={{ marginTop: 12 }}>
+              <input
+                className="input"
+                placeholder="邀请码（必须）"
+                value={invite}
+                onChange={(e) => setInvite(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && submit()}
+              />
+            </div>
+          )}
           {err && <div className="error-text">{err}</div>}
-          <button className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 14 }} disabled={busy || !email || !password} onClick={submit}>
+          <button className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 14 }} disabled={busy || !email || !password || (mode === 'register' && !invite)} onClick={submit}>
             {busy ? '···' : mode === 'login' ? '登录' : '注册并登录'}
           </button>
           <div className="auth-alt">

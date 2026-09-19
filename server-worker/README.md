@@ -88,6 +88,28 @@ custom_domain = true
 | 账号绑定 | JWT 同时校验 id + email，避免换库/重建后 id 撞车串号 |
 | CORS | 只放行自家源（`tauri.localhost` / 本地开发端口），第三方网页无法直接调用 |
 
+## 注册闸门：邀请码（防他人免费使用）
+
+注册**必须凭邀请码**，一次性使用，与用户绑定（`invite_codes` 表：code / note / created_at / used_by_email / used_at）。
+
+```bash
+# 生成邀请码（默认 1 个，可指定数量与备注）
+node scripts/mint-invite.mjs 5 "首批"
+node scripts/mint-invite.mjs 1 "给朋友的"
+
+# 查询所有码与使用情况
+npx wrangler d1 execute zenew-apac --remote --command "SELECT code,note,used_by_email,used_at FROM invite_codes ORDER BY created_at DESC"
+
+# 停用某个未使用的码
+npx wrangler d1 execute zenew-apac --remote --command "UPDATE invite_codes SET used_by_email='disabled' WHERE code='ZENEW-XXXX-XXXX'"
+
+# 给某账号重置/续期额度（按邮箱删除本月用量）
+npx wrangler d1 execute zenew-apac --remote --command "DELETE FROM usage_log WHERE user_id=(SELECT id FROM users WHERE email='a@b.com')"
+```
+
+客户端「注册」页有邀请码输入框（v0.4.0 起），无码/用过的码会分别返回「需要邀请码」「邀请码无效或已被使用」。
+建号失败会自动释放邀请码，不会白白消耗。
+
 ## 本地开发
 
 ```bash

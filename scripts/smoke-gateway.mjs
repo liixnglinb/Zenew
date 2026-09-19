@@ -1,7 +1,9 @@
 // 线上网关冒烟测试：node scripts/smoke-gateway.mjs <baseUrl>
 // 覆盖：health / courses / 注册 / 登录 / me / 大纲 / 卡片（含中文 UTF-8）/ 额度计量 / 鉴权拒绝 / 限流字段
 const base = (process.argv[2] || '').replace(/\/$/, '')
-if (!base) { console.error('用法: node scripts/smoke-gateway.mjs https://zenew-api.example.com'); process.exit(2) }
+const INVITE = process.argv[3] || process.env.SMOKE_INVITE || ''
+if (!base) { console.error('用法: node scripts/smoke-gateway.mjs https://zenew-api.example.com <邀请码>'); process.exit(2) }
+if (!INVITE) { console.error('需要邀请码参数（注册闸门校验用）：先 node scripts/mint-invite.mjs 1 test'); process.exit(2) }
 
 const email = `smoke_${Date.now()}@zenew.test`
 const password = 'zenew-smoke-2026'
@@ -31,13 +33,24 @@ ok('GET /health 200', health.status === 200, `provider=${health.json?.provider}`
 const courses = await call('/courses')
 ok('GET /courses 返回课程目录', courses.status === 200 && Array.isArray(courses.json?.courses), `${courses.json?.courses?.length ?? 0} 门课`)
 
-// 3. 注册（中文无关，但验证 UTF-8 与密码哈希链路）
-const reg = await call('/auth/register', { method: 'POST', body: { email, password } })
-ok('POST /auth/register 注册成功', reg.status === 200 && !!reg.json?.token, reg.json?.detail || '')
+// 3. 无邀请码注册应被拒（防他人免费使用）
+const noCode = await call('/auth/register', { method: 'POST', body: { email, password } })
+ok('无邀请码注册被拒（400）', noCode.status === 400, noCode.json?.detail || '')
 
-// 4. 重复注册应被拒
-const dup = await call('/auth/register', { method: 'POST', body: { email, password } })
-ok('重复注册被拒（400）', dup.status === 400, dup.json?.detail || '')
+// 4. 凭邀请码注册成功
+const reg = await call('/auth/register', { method: 'POST', body: { email, password, invite_code: INVITE } })
+ok('凭邀请码注册成功', reg.status === 200 && !!reg.json?.token, reg.json?.detail || '')
+
+// 5. 同一邀请码二次使用应被拒（一次性）
+const reuse = await call('/auth/register', {
+  method: 'POST',
+  body: { email: `reuse_${Date.now()}@zenew.test`, password, invite_code: INVITE },
+})
+ok('邀请码一次性（重复使用被拒 403）', reuse.status === 403, reuse.json?.detail || '')
+
+// 6. 重复邮箱注册应被拒
+const dup = await call('/auth/register', { method: 'POST', body: { email, password, invite_code: INVITE } })
+ok('重复邮箱注册被拒（400）', dup.status === 400, dup.json?.detail || '')
 
 // 5. 登录
 const login = await call('/auth/login', { method: 'POST', body: { email, password } })

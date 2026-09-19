@@ -1,5 +1,8 @@
 // 真实内容端到端：客户端 → 线上网关(openai) → 生成真实卡片 → 进复习
+// 用法：node scripts/cdp-real-e2e.mjs ZENEW-XXXX-XXXX
 import fs from 'fs';
+const INVITE = process.argv[2] || ''
+if (!INVITE) { console.error('需要邀请码参数：node scripts/cdp-real-e2e.mjs ZENEW-XXXX-XXXX'); process.exit(2) }
 const email = `real_${Date.now()}@zenew.test`;
 const password = 'zenew-real-2026';
 
@@ -29,6 +32,9 @@ const fillReact = (sel, value) => ev(`(() => {
 const clickText = (t, sel = 'button') => ev(`(() => { const b=[...document.querySelectorAll(${JSON.stringify(sel)})].find(x=>x.textContent.includes(${JSON.stringify(t)})); if(!b) return 'not-found'; b.click(); return 'clicked'; })()`);
 
 await send('Page.enable');
+// 先清掉旧登录态，回到登录页，模拟新用户首次使用
+await ev("localStorage.removeItem('zenew_token'); location.reload()")
+await sleep(4000)
 console.log('起始:', await ev("document.body.innerText.replace(/\\s+/g,' ').slice(0,50)"));
 
 // 若在登录页 → 注册
@@ -37,6 +43,9 @@ if (await ev("document.body.innerText.includes('SIGN IN') || document.body.inner
   await clickText('注册', '.auth-alt button'); await sleep(600);
   await fillReact('.auth-box input[placeholder="邮箱"]', email);
   await ev(`(() => { const pw=document.querySelector('.auth-box input[type=password]'); const s=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set; s.call(pw, ${JSON.stringify(password)}); pw.dispatchEvent(new Event('input',{bubbles:true})); return 'ok' })()`);
+  await sleep(400)
+  // 邀请码输入框（注册模式才出现）
+  console.log('   填邀请码:', await fillReact('.auth-box input[placeholder*="邀请码"]', INVITE))
   await sleep(300); await clickText('注册并登录'); await sleep(6000);
   console.log('   ', await ev("document.body.innerText.replace(/\\s+/g,' ').slice(0,60)"));
 }

@@ -48,8 +48,8 @@ export const fetchMe = (): Promise<Me> => api('/me')
 export const login = (email: string, password: string) =>
   api('/auth/login', { method: 'POST', body: { email, password }, auth: false })
 
-export const register = (email: string, password: string) =>
-  api('/auth/register', { method: 'POST', body: { email, password }, auth: false })
+export const register = (email: string, password: string, inviteCode: string) =>
+  api('/auth/register', { method: 'POST', body: { email, password, invite_code: inviteCode }, auth: false })
 
 export interface GenCard {
   type: 'basic' | 'why' | 'choice'

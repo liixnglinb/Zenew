@@ -19,3 +19,14 @@ CREATE TABLE IF NOT EXISTS usage_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_usage_user_created ON usage_log (user_id, created_at);
+
+-- 邀请码：注册必须凭码，一次性使用（防止别人免费使用软件）
+CREATE TABLE IF NOT EXISTS invite_codes (
+  code TEXT PRIMARY KEY,
+  note TEXT,
+  created_at TEXT NOT NULL,
+  used_by_email TEXT,
+  used_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_invite_used ON invite_codes (used_by_email);
