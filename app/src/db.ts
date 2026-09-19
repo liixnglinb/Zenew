@@ -25,9 +25,24 @@ CREATE TABLE IF NOT EXISTS exam(id INTEGER PRIMARY KEY AUTOINCREMENT, course_id 
 CREATE TABLE IF NOT EXISTS _zenew_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `
 
+let schemaInit: Promise<void> | null = null
+
 export async function ensureSchema(): Promise<void> {
+  // StrictMode 下 useEffect 双触发，保证只初始化一次
+  if (!schemaInit) {
+    schemaInit = doEnsureSchema().catch((e) => {
+      schemaInit = null
+      throw e
+    })
+  }
+  return schemaInit
+}
+
+async function doEnsureSchema(): Promise<void> {
   const db = await getDb()
-  await db.execute(SCHEMA_V1)
+  for (const stmt of SCHEMA_V1.split(';').map((s) => s.trim()).filter(Boolean)) {
+    await db.execute(stmt)
+  }
   const seeded = await db.select<{ value: string }[]>("SELECT value FROM _zenew_meta WHERE key='seed_version'")
   if (seeded.length === 0) {
     await seedCourses(db)

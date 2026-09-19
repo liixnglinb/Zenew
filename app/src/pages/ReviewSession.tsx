@@ -13,6 +13,8 @@ export default function ReviewSession() {
   const [picked, setPicked] = useState<number | null>(null)
   const [done, setDone] = useState<{ total: number; again: number; ms: number } | null>(null)
   const shownAt = useRef<number>(Date.now())
+  const sessionStart = useRef<number>(Date.now())
+  const againCount = useRef<number>(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -88,9 +90,6 @@ export default function ReviewSession() {
       shownAt.current = Date.now()
     }
   }
-
-  const sessionStart = useRef<number>(Date.now())
-  const againCount = useRef<number>(0)
 
   const pickChoice = (i: number) => {
     if (phase === 'answered') return
