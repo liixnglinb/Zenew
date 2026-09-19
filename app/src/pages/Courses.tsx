@@ -87,6 +87,7 @@ export default function Courses() {
     try {
       const r = await runImportPipeline(file, file.name.replace(/\.pdf$/i, ''), {
         onStage: (stage, detail) => setImp((s) => ({ ...s, stage, detail })),
+        onCourseCreated: (cid) => setImp((s) => ({ ...s, courseId: cid })),
         onChapterReady: () => setImp((s) => ({ ...s, chapters: s.chapters + 1, topics: s.topics + 1 })),
         onCards: (n) => setImp((s) => ({ ...s, cards: n })),
       })

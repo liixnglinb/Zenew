@@ -8,6 +8,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 export interface PipelineEvent {
   onStage?: (stage: 'reading' | 'parsing' | 'extracting' | 'cards', detail: string) => void
+  onCourseCreated?: (courseId: number) => void
   onChapterReady?: (chapterTitle: string, topics: number) => void
   onCards?: (n: number) => void
 }
@@ -35,17 +36,36 @@ async function parsePdf(data: ArrayBuffer, ev: PipelineEvent): Promise<ParsedSeg
     ev.onStage?.('parsing', `第 ${p}/${pdf.numPages} 页`)
     const page = await pdf.getPage(p)
     const tc = await page.getTextContent()
-    const text = tc.items.map((it: any) => it.str).join(' ')
+    // 按 y 坐标重组成行（pdf.js 返回的是无序文本片段）
+    const linesMap = new Map<number, { x: number; s: string }[]>()
+    for (const it of tc.items as any[]) {
+      if (!it.str) continue
+      const y = Math.round(it.transform[5] / 4) * 4 // 4pt 容差合并同行
+      if (!linesMap.has(y)) linesMap.set(y, [])
+      linesMap.get(y)!.push({ x: it.transform[4], s: it.str })
+    }
+    const ys = [...linesMap.keys()].sort((a, b) => b - a) // 从上到下
+    const lines = ys.map((y) =>
+      linesMap
+        .get(y)!
+        .sort((a, b) => a.x - b.x)
+        .map((w) => w.s)
+        .join('')
+        .trim()
+    ).filter(Boolean)
+    const text = lines.join('\n')
     if (text.trim().length < MIN_CHARS_PER_PAGE) {
       scanned++
       continue
     }
-    // 章标题检测（页首）
-    const firstLine = text.trim().split(/\s+/).slice(0, 12).join(' ')
-    if (CHAPTER_RE.test(firstLine)) {
-      if (buf.trim().length > 200) segments.push({ chapter, text: buf })
-      chapter = firstLine.slice(0, 60).replace(/\s+/g, ' ').trim()
-      buf = ''
+    // 章标题检测：前几行中匹配「第X章」且该行较短（是标题而不是正文）
+    for (const ln of lines.slice(0, 3)) {
+      if (CHAPTER_RE.test(ln) && ln.length <= 40) {
+        if (buf.trim().length > 200) segments.push({ chapter, text: buf })
+        chapter = ln.slice(0, 40).replace(/\s+/g, ' ').trim()
+        buf = ''
+        break
+      }
     }
     buf += (buf ? '\n' : '') + text
     if (buf.length >= SEGMENT_CHARS) {
@@ -65,6 +85,7 @@ export async function runImportPipeline(file: File, courseName: string, ev: Pipe
   // 1. 立即建课程（用户马上能看见）
   const r = await db.execute('INSERT INTO course(name, kind, created_at) VALUES(?,?,?)', [courseName || file.name.replace(/\.pdf$/i, ''), 'pdf', nowIso()])
   const courseId = Number(r.lastInsertId)
+  ev.onCourseCreated?.(courseId) // 立刻可点「边解析边学习」
 
   // 2. 解析（异步，不阻塞 UI）
   ev.onStage?.('reading', file.name)
