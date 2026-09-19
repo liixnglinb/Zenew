@@ -58,9 +58,9 @@ async function parsePdf(data: ArrayBuffer, ev: PipelineEvent): Promise<ParsedSeg
       scanned++
       continue
     }
-    // 章标题检测：前几行中匹配「第X章」且该行较短（是标题而不是正文）
-    for (const ln of lines.slice(0, 3)) {
-      if (CHAPTER_RE.test(ln) && ln.length <= 40) {
+    // 章标题检测：任何位置出现「第X章」独立短行；跳过与当前章同名的页眉
+    for (const ln of lines) {
+      if (CHAPTER_RE.test(ln) && ln.length <= 32 && ln !== chapter) {
         if (buf.trim().length > 200) segments.push({ chapter, text: buf })
         chapter = ln.slice(0, 40).replace(/\s+/g, ' ').trim()
         buf = ''
