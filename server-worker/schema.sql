@@ -30,3 +30,24 @@ CREATE TABLE IF NOT EXISTS invite_codes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invite_used ON invite_codes (used_by_email);
+
+-- 充值卡密：用户兑换后获得「余额 tokens」（不随月份清零，先用免费额度再用余额）
+CREATE TABLE IF NOT EXISTS topup_codes (
+  code TEXT PRIMARY KEY,
+  tier INTEGER NOT NULL,
+  price_cny REAL NOT NULL,
+  tokens INTEGER NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL,
+  used_by_email TEXT,
+  used_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_topup_used ON topup_codes (used_by_email);
+
+-- 余额（每用户一行；不随月份清零）
+CREATE TABLE IF NOT EXISTS balances (
+  user_id INTEGER PRIMARY KEY,
+  tokens INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);

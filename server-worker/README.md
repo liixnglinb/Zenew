@@ -110,6 +110,36 @@ npx wrangler d1 execute zenew-apac --remote --command "DELETE FROM usage_log WHE
 客户端「注册」页有邀请码输入框（v0.4.0 起），无码/用过的码会分别返回「需要邀请码」「邀请码无效或已被使用」。
 建号失败会自动释放邀请码，不会白白消耗。
 
+## 充值：卡密兑换（v0.5.0）
+
+四档定价（用户定价决策：最低 ¥3.9，毛利 ≥60%，越往上每元额度越多）：
+
+| 档 | 价格 | 额度 | 保守成本(¥2/M) | 毛利 |
+|---|---|---|---|---|
+| 1 | ¥3.9 | 60 万 tokens | ¥1.2 | 69% |
+| 2 | ¥9.9 | 170 万 | ¥3.4 | 66% |
+| 3 | ¥19.9 | 370 万 | ¥7.4 | 63% |
+| 4 | ¥39.9 | 780 万 | ¥15.6 | 61% |
+
+> 实际成本约 ¥1.2/百万 tokens（实测 5 张卡 743 tokens ≈ ¥0.0009），故真实毛利约 69~74%。
+
+```bash
+# 生成卡密（档位 1-4，数量，备注）
+node scripts/mint-topup.mjs 2 10 "双十一"
+
+# 查询/核查卡密
+npx wrangler d1 execute zenew-apac --remote --command "SELECT code,tier,price_cny,used_by_email,used_at FROM topup_codes ORDER BY created_at DESC LIMIT 20"
+
+# 作废未使用卡密（置为已用占位）
+npx wrangler d1 execute zenew-apac --remote --command "UPDATE topup_codes SET used_by_email='void' WHERE code='ZC-XXXX-XXXX'"
+
+# 查看某用户余额
+npx wrangler d1 execute zenew-apac --remote --command "SELECT u.email,b.tokens FROM balances b JOIN users u ON u.id=b.user_id ORDER BY b.tokens DESC"
+```
+
+**结算规则**：先生成本月免费额度（20 万），用完后自动从余额扣（余额不随月份清零）；
+`/me` 同时返回 `used_tokens`（本月已用）、`quota_tokens`（免费额度）、`balance_tokens`（充值余额）。
+
 ## 本地开发
 
 ```bash

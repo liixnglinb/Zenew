@@ -36,7 +36,7 @@ export async function api(path: string, opts: { method?: string; body?: unknown;
   return data
 }
 
-export interface Me { email: string; used_tokens: number; quota_tokens: number }
+export interface Me { email: string; used_tokens: number; quota_tokens: number; balance_tokens?: number }
 export interface ChapterDef { title: string; topics: string[] }
 export interface CourseDef { id: string; name: string; chapters: ChapterDef[] }
 
@@ -65,3 +65,7 @@ export const genOutline = (title: string, num_chapters = 5) =>
 
 export const genCards = (topic_title: string, context: string | null, n = 5, types: string[] = ['basic', 'why', 'choice']) =>
   api('/gen/cards', { method: 'POST', body: { topic_title, context, n, types } })
+
+/** 充值：卡密兑换（额度进入余额，不随月份清零） */
+export const redeemCode = (code: string): Promise<{ ok: boolean; tier: number; price_cny: number; added_tokens: number; balance_tokens: number }> =>
+  api('/billing/redeem', { method: 'POST', body: { code } })

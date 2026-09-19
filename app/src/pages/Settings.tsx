@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getVersion } from '@tauri-apps/api/app'
-import { getServer, setServer } from '../api'
+import { getServer, setServer, fetchMe, redeemCode, ApiError, type Me } from '../api'
 import { checkUpdate, applyUpdate, type UpdateInfo } from '../updater'
 import { isTauri } from '../db'
 
@@ -13,14 +13,20 @@ export default function SettingsPage() {
   const [progress, setProgress] = useState<number | null>(null)
   const [msg, setMsg] = useState('')
   const [ver, setVer] = useState('')
+  const [me, setMe] = useState<Me | null>(null)
+  const [code, setCode] = useState('')
+  const [redeeming, setRedeeming] = useState(false)
+  const [redeemMsg, setRedeemMsg] = useState('')
+  const [redeemOk, setRedeemOk] = useState(false)
 
-  // 启动即静默检查一次 + 读取真实版本号（更新后能反映新二进制）
+  // 启动即静默检查一次 + 读取真实版本号（更新后能反映新二进制）+ 拉取额度
   useEffect(() => {
     if (isTauri()) getVersion().then((v) => setVer('v' + v)).catch(() => setVer('dev'))
     else setVer('dev')
     checkUpdate().then((u) => {
       if (u) setUpdate({ version: u.version, notes: u.body ?? null })
     })
+    fetchMe().then(setMe).catch(() => {})
   }, [])
 
   const runCheck = async () => {
@@ -47,6 +53,28 @@ export default function SettingsPage() {
     }
   }
 
+  const doRedeem = async () => {
+    const c = code.trim().toUpperCase()
+    if (!c) return
+    setRedeeming(true)
+    setRedeemMsg('')
+    setRedeemOk(false)
+    try {
+      const r = await redeemCode(c)
+      setRedeemOk(true)
+      setRedeemMsg(`已到账 ${(r.added_tokens / 10000).toFixed(0)} 万 tokens（${r.tier} 档 ¥${r.price_cny}），当前余额 ${(r.balance_tokens / 10000).toFixed(0)} 万`)
+      setCode('')
+      fetchMe().then(setMe).catch(() => {})
+    } catch (e) {
+      setRedeemMsg(e instanceof ApiError ? e.message : '兑换失败，请检查网络')
+    } finally {
+      setRedeeming(false)
+    }
+  }
+
+  const free = me ? Math.max(0, me.quota_tokens - me.used_tokens) : 0
+  const freePct = me ? Math.min(100, (me.used_tokens / me.quota_tokens) * 100) : 0
+
   return (
     <div className="page-in">
       <div className="kicker">SETTINGS</div>
@@ -72,7 +100,42 @@ export default function SettingsPage() {
       )}
 
       <div style={{ marginTop: 26 }}>
-        <div className="section-label">SERVER</div>
+        <div className="section-label">余额 / BALANCE</div>
+        <div className="settings-row">
+          <div style={{ flex: 1 }}>
+            <div className="row-title" style={{ fontWeight: 500, fontSize: 13.5 }}>
+              充值余额 {me ? `${(me.balance_tokens || 0).toLocaleString()} tokens` : '…'}
+            </div>
+            <div className="bar" style={{ width: 180, marginTop: 7 }}>
+              <span className="seg-gold" style={{ width: `${me && me.balance_tokens ? Math.min(100, (me.balance_tokens / 3_700_000) * 100) : 0}%` }} />
+            </div>
+          </div>
+          <span className="tag tag-mono">{me ? `免费剩 ${(free / 10000).toFixed(1)} 万` : '—'}</span>
+        </div>
+        <div className="settings-row">
+          <div style={{ flex: 1 }}>
+            <div className="row-title" style={{ fontWeight: 500, fontSize: 13.5 }}>兑换充值码</div>
+            <div className="row-meta" style={{ fontFamily: 'var(--mono)', fontSize: 10.5 }}>
+              {redeemMsg || '输入卡密即时到账，额度不随月份清零'}
+            </div>
+          </div>
+          <input
+            className="input"
+            style={{ width: 190, fontFamily: 'var(--mono)', textTransform: 'uppercase' }}
+            placeholder="ZC-XXXX-XXXX"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && doRedeem()}
+          />
+          <button className="btn btn-primary btn-sm" disabled={redeeming || !code.trim()} onClick={doRedeem} style={redeemOk ? { background: 'var(--green)', borderColor: 'var(--green)' } : undefined}>
+            {redeeming ? '···' : redeemOk ? '已到账' : '兑换'}
+          </button>
+        </div>
+        <div className="row-meta" style={{ marginTop: 8, fontSize: 11 }}>
+          免费额度：本月剩余 {(free / 10000).toFixed(1)} 万 / 共 {(me ? me.quota_tokens / 10000 : 20).toFixed(0)} 万（已用 {freePct.toFixed(1)}%）；用完自动走余额。
+        </div>
+
+        <div className="section-label" style={{ marginTop: 22 }}>SERVER</div>
         <div className="settings-row">
           <div style={{ flex: 1 }}>
             <div className="row-title" style={{ fontWeight: 500, fontSize: 13.5 }}>服务地址</div>

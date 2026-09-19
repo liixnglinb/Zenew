@@ -112,6 +112,43 @@ async function checkQuota(env: Env, userId: number) {
   return (await usedThisMonth(env, userId)) >= quota
 }
 
+/** 余额（已充值 tokens，不随月份清零） */
+async function getBalance(env: Env, userId: number): Promise<number> {
+  const row = await env.DB.prepare('SELECT tokens FROM balances WHERE user_id=?').bind(userId).first<{ tokens: number }>()
+  return row?.tokens ?? 0
+}
+
+async function addBalance(env: Env, userId: number, tokens: number) {
+  await env.DB.prepare(
+    `INSERT INTO balances(user_id,tokens,updated_at) VALUES(?,?,?)
+     ON CONFLICT(user_id) DO UPDATE SET tokens = tokens + excluded.tokens, updated_at = excluded.updated_at`
+  )
+    .bind(userId, tokens, nowIso())
+    .run()
+}
+
+async function deductBalance(env: Env, userId: number, tokens: number) {
+  if (tokens <= 0) return
+  await env.DB.prepare(
+    'UPDATE balances SET tokens = MAX(0, tokens - ?), updated_at=? WHERE user_id=?'
+  )
+    .bind(tokens, nowIso(), userId)
+    .run()
+}
+
+/** 是否允许生成：免费额度没用完 或 有充值余额 */
+async function quotaAllows(env: Env, userId: number): Promise<boolean> {
+  if (!(await checkQuota(env, userId))) return true
+  return (await getBalance(env, userId)) > 0
+}
+
+/** 生成后结算：本月用量超出免费额度的部分，从余额扣 */
+async function settleUsage(env: Env, userId: number, freeUsedBefore: number, usedTokens: number) {
+  const freeQuota = parseInt(env.FREE_MONTHLY_TOKENS || '200000', 10)
+  const over = freeUsedBefore + usedTokens - freeQuota
+  if (over > 0) await deductBalance(env, userId, over)
+}
+
 /** 全局月度预算熔断：保护服务端 LLM key 不被刷爆（0 或未设 = 不限制） */
 async function globalBudgetExhausted(env: Env): Promise<boolean> {
   const cap = parseInt(env.GLOBAL_MONTHLY_TOKENS || '0', 10)
@@ -272,6 +309,41 @@ app.get('/me', auth, async (c) => {
     email: c.get('email'),
     used_tokens: await usedThisMonth(c.env, userId),
     quota_tokens: parseInt(c.env.FREE_MONTHLY_TOKENS || '200000', 10),
+    balance_tokens: await getBalance(c.env, userId),
+  })
+})
+
+// ---------- 充值：卡密兑换（一次一码，额度充值到余额，不随月份清零） ----------
+app.post('/billing/redeem', auth, async (c) => {
+  const userId = c.get('userId')
+  const email = c.get('email')
+  const body: any = await c.req.json().catch(() => ({}))
+  const code = String(body.code ?? '').trim().toUpperCase()
+  if (!code) return err(c, 400, '请输入兑换码')
+
+  const claimed = await c.env.DB.prepare(
+    'UPDATE topup_codes SET used_by_email=?, used_at=? WHERE code=? AND used_by_email IS NULL'
+  )
+    .bind(email, nowIso(), code)
+    .run()
+  if (!claimed.meta.changes) {
+    const exists = await c.env.DB.prepare('SELECT used_by_email FROM topup_codes WHERE code=?')
+      .bind(code)
+      .first<{ used_by_email: string | null }>()
+    if (!exists) return err(c, 404, '兑换码无效')
+    return err(c, 403, `该兑换码已被使用${exists.used_by_email === email ? '（你自己用过了）' : ''}`)
+  }
+
+  const row = await c.env.DB.prepare('SELECT tier,tokens,price_cny FROM topup_codes WHERE code=?')
+    .bind(code)
+    .first<{ tier: number; tokens: number; price_cny: number }>()
+  await addBalance(c.env, userId, row?.tokens ?? 0)
+  return c.json({
+    ok: true,
+    tier: row?.tier ?? 0,
+    price_cny: row?.price_cny ?? 0,
+    added_tokens: row?.tokens ?? 0,
+    balance_tokens: await getBalance(c.env, userId),
   })
 })
 
@@ -280,7 +352,8 @@ app.post('/gen/outline', auth, async (c) => {
   const userId = c.get('userId')
   if (await globalBudgetExhausted(c.env)) return err(c, 503, '服务本月额度已用完，请下月再来')
   if (await overRate(c.env, userId)) return err(c, 429, '请求太频繁，请稍后再试')
-  if (await checkQuota(c.env, userId)) return err(c, 402, '本月免费额度已用完')
+  const freeUsedBefore = await usedThisMonth(c.env, userId)
+  if (!(await quotaAllows(c.env, userId))) return err(c, 402, '免费额度已用完，请充值后继续')
 
   const body: any = await c.req.json().catch(() => ({}))
   const title = String(body.title ?? '').trim()
@@ -306,6 +379,7 @@ app.post('/gen/outline', auth, async (c) => {
     usage = r.usage
   }
   await logUsage(c.env, userId, '/gen/outline', usage)
+  await settleUsage(c.env, userId, freeUsedBefore, (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0))
   const data = extractJson(content)
   return c.json({ outline: data.chapters ?? [], provider: c.env.LLM_PROVIDER, usage })
 })
@@ -314,7 +388,8 @@ app.post('/gen/cards', auth, async (c) => {
   const userId = c.get('userId')
   if (await globalBudgetExhausted(c.env)) return err(c, 503, '服务本月额度已用完，请下月再来')
   if (await overRate(c.env, userId)) return err(c, 429, '请求太频繁，请稍后再试')
-  if (await checkQuota(c.env, userId)) return err(c, 402, '本月免费额度已用完')
+  const freeUsedBefore = await usedThisMonth(c.env, userId)
+  if (!(await quotaAllows(c.env, userId))) return err(c, 402, '免费额度已用完，请充值后继续')
 
   const body: any = await c.req.json().catch(() => ({}))
   const topicTitle = String(body.topic_title ?? '').trim()
@@ -359,6 +434,7 @@ app.post('/gen/cards', auth, async (c) => {
     usage = r.usage
   }
   await logUsage(c.env, userId, '/gen/cards', usage)
+  await settleUsage(c.env, userId, freeUsedBefore, (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0))
   const data = extractJson(content)
   const { ok, bad } = lintCards(Array.isArray(data.cards) ? data.cards : [])
   return c.json({ cards: ok, rejected: bad, provider: c.env.LLM_PROVIDER, usage })

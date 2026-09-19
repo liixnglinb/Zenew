@@ -104,6 +104,12 @@ export default function Stats() {
             <div className="bar" style={{ height: 5 }}>
               <span className="seg-gold" style={{ width: `${Math.max(2, pct)}%` }} />
             </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
+              <span className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>充值余额</span>
+              <span className="stat-value" style={{ fontSize: 13, fontWeight: 600 }}>
+                {((me.balance_tokens || 0) / 10000).toFixed(0)} 万 tokens
+              </span>
+            </div>
           </>
         ) : (
           <div className="muted">离线中</div>
