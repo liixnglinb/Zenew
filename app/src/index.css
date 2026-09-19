@@ -63,8 +63,39 @@ input, select { font-family: inherit; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .fade-up { animation: fadeUp .3s var(--ease) both; }
 
+/* ---------------- 自绘标题栏（无边框窗口） ---------------- */
+.titlebar {
+  height: 44px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding-left: 18px;
+  user-select: none;
+  position: relative; z-index: 50;
+  transition: opacity .35s var(--ease), transform .35s var(--ease);
+}
+.titlebar-hidden { opacity: 0; pointer-events: none; transform: translateY(-100%); }
+.titlebar-brand {
+  font-size: 14.5px; font-weight: 800; letter-spacing: -.2px;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.titlebar-brand small {
+  font-family: var(--mono); font-size: 8.5px; font-weight: 500; color: var(--ink-3); letter-spacing: 1.6px;
+}
+.titlebar-tag {
+  font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; letter-spacing: .5px;
+}
+.titlebar-spacer { flex: 1; }
+.titlebar-btn {
+  width: 46px; height: 44px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--ink-2);
+  transition: background .12s, color .12s;
+}
+.titlebar-btn:hover { background: var(--paper-sunken); color: var(--ink); }
+.titlebar-close:hover { background: #E81123; color: #fff; }
+
 /* ---------------- 布局 ---------------- */
-.shell { display: flex; height: 100vh; overflow: hidden; position: relative; }
+.shell { display: flex; height: calc(100vh - 44px); overflow: hidden; position: relative; }
 /* Voyra 氛围光斑 */
 .ambient {
   position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
@@ -224,6 +255,18 @@ kbd {
 
 /* ---------------- 复习（沉浸） ---------------- */
 .review-stage { max-width: 620px; margin: 0 auto; padding-top: 5vh; }
+.review-stage.review-fs { padding-top: 9vh; }
+.review-stage.review-fs .review-card { min-height: 480px; padding: 44px 48px 36px; }
+.review-stage.review-fs .review-front { font-size: 23px; }
+.review-stage.review-fs .review-back { font-size: 17px; }
+.review-exit {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink-3);
+  margin-left: 12px; flex-shrink: 0;
+  transition: color .15s, border-color .15s, transform .15s var(--ease), background .15s;
+}
+.review-exit:hover { color: var(--red); border-color: var(--red); background: var(--red-wash); transform: scale(1.06); }
 .review-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; min-height: 26px; }
 .review-progress { display: flex; align-items: center; gap: 10px; }
 .review-progress-num {
@@ -313,6 +356,7 @@ kbd {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
   position: relative; overflow: hidden;
 }
+.auth-drag { position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 50; }
 .auth-box { width: 380px; position: relative; z-index: 1; }
 .auth-brand { font-size: 44px; font-weight: 800; letter-spacing: -1.6px; margin-bottom: 4px; }
 .auth-sub { color: var(--ink-2); font-size: 13px; margin-bottom: 26px; }

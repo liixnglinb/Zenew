@@ -29,6 +29,7 @@ export default function Login({ onLogin }: { onLogin: (me: { email: string }) =>
 
   return (
     <div className="auth-wrap">
+      <div data-tauri-drag-region className="auth-drag" />
       <div className="ambient" style={{ width: 420, height: 420, top: -120, right: -80 }} />
       <div className="ambient" style={{ width: 360, height: 360, bottom: -140, left: -60, animationDelay: '2.5s' }} />
       <div className="auth-box page-in">

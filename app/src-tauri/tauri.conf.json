@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Zenew",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "identifier": "com.zenew.app",
   "build": {
     "frontendDist": "../dist",
@@ -16,7 +16,8 @@
         "width": 1280,
         "height": 820,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": false
       }
     ],
     "security": {

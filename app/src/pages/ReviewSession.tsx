@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Check, X } from 'lucide-react'
-import { getDb, loadQueue, nowIso, type QueueItem } from '../db'
+import { getDb, loadQueue, nowIso, isTauri, type QueueItem } from '../db'
 import { schedule, R } from '../fsrs'
 
 type Phase = 'front' | 'answered'
@@ -17,6 +18,29 @@ export default function ReviewSession() {
   const sessionStart = useRef<number>(Date.now())
   const againCount = useRef<number>(0)
   const [loading, setLoading] = useState(true)
+  const [fs, setFs] = useState(false)
+  /** 全屏开关：开始学习 → 窗口全屏（自绘标题栏自动隐藏）；退出/完成 → 恢复 */
+  const enterFs = () => {
+    if (isTauri()) getCurrentWindow().setFullscreen(true).catch(() => {})
+  }
+  const exitFs = () => {
+    if (isTauri()) getCurrentWindow().setFullscreen(false).catch(() => {})
+  }
+  useEffect(() => {
+    enterFs()
+    if (isTauri()) {
+      const win = getCurrentWindow()
+      const p = win.onResized(async () => {
+        try { setFs(await win.isFullscreen()) } catch {}
+      })
+      return () => {
+        exitFs()
+        p.then((f) => f()).catch(() => {})
+      }
+    }
+    return () => exitFs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     ;(async () => {
@@ -30,6 +54,12 @@ export default function ReviewSession() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        exitFs()
+        nav('/today')
+        return
+      }
       const item = queue[idx]
       if (!item || done) return
       const hasChoices = !!item.choices_json
@@ -80,11 +110,16 @@ export default function ReviewSession() {
             <span className="tag">{Math.round(s.ms / 1000)}s</span>
           </div>
         )}
-        {queue.length === 0 && !done && (
-          <button className="btn btn-primary" onClick={() => nav('/courses')}>去生成卡片</button>
-        )}
         <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
-          <button className="btn btn-primary" onClick={() => nav('/today')}>回到今日</button>
+          <button className="btn btn-primary" onClick={() => { exitFs(); nav('/today') }}>回到今日</button>
+          {fs && (
+            <button className="btn" onClick={exitFs}>
+              退出全屏
+            </button>
+          )}
+          {queue.length === 0 && !done && (
+            <button className="btn" onClick={() => { exitFs(); nav('/courses') }}>去生成卡片</button>
+          )}
         </div>
       </div>
     )
@@ -139,7 +174,7 @@ export default function ReviewSession() {
   }
 
   return (
-    <div className="review-stage">
+    <div className={`review-stage${fs ? ' review-fs' : ''}`}>
       <div className="review-top">
         <div className="review-progress">
           <span className="review-progress-num">{String(idx + 1).padStart(2, '0')} / {String(queue.length).padStart(2, '0')}</span>
@@ -148,6 +183,9 @@ export default function ReviewSession() {
           </div>
         </div>
         <span className="review-loc">{item.course_name} · {item.topic_title}</span>
+        <button className="review-exit" title="退出学习（Esc）" onClick={() => { exitFs(); nav('/today') }}>
+          <X size={14} strokeWidth={1.8} />
+        </button>
       </div>
 
       <div className="review-card" key={`${item.id}-${idx}`}>

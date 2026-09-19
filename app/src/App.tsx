@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BookOpen, BarChart3, Home, LogOut, Settings } from 'lucide-react'
 import { ApiError, fetchMe, getToken, setToken, type Me } from './api'
 import { isTauri, ensureSchema } from './db'
+import TitleBar from './components/TitleBar'
 import Login from './pages/Login'
 import Today from './pages/Today'
 import Courses from './pages/Courses'
@@ -95,6 +96,7 @@ export default function App() {
   void offline
   return (
     <HashRouter>
+      <TitleBar />
       <Shell />
     </HashRouter>
   )
