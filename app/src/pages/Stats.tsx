@@ -47,41 +47,40 @@ export default function Stats() {
       try {
         setMe(await fetchMe())
       } catch {
-        /* 离线时静默 */
+        /* 离线静默 */
       }
     })().catch(console.error)
   }, [])
 
-  if (!s) return <div className="muted">载入中…</div>
+  if (!s) return <div className="muted">···</div>
   const maxWeek = Math.max(1, ...s.week.map((w) => w.n))
   const pct = me ? Math.min(100, (me.used_tokens / me.quota_tokens) * 100) : 0
 
   return (
-    <div>
+    <div className="page-in">
+      <div className="kicker">STATS / RETENTION</div>
       <div className="page-title">统计</div>
-      <div className="page-sub">看「记住了多少」，而不是「学了多久」</div>
 
-      <div className="metric-row">
-        <div className="metric"><b>{s.todayReviews}</b><span>今日已复习</span></div>
-        <div className="metric metric-hl"><b>{s.mastered}</b><span>已掌握</span></div>
+      <div className="metric-row" style={{ marginTop: 24 }}>
+        <div className="metric"><b>{s.todayReviews}</b><span>今日</span></div>
+        <div className={`metric${s.mastered > 0 ? ' metric-hl' : ''}`}><b>{s.mastered}</b><span>已掌握</span></div>
         <div className="metric"><b>{s.reviewing}</b><span>巩固中</span></div>
-        <div className="metric"><b>{s.cards}</b><span>卡片总数</span></div>
+        <div className="metric"><b>{s.cards}</b><span>卡片</span></div>
       </div>
-      <div className="muted" style={{ marginBottom: 20 }}>
-        共 {s.courses} 门课程 · {s.topics} 个知识点。「已掌握」指跨多次复习后稳定保持（FSRS 稳定期 ≥ 21 天）。
+      <div className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 11, marginBottom: 22 }}>
+        {s.courses} 门课程 · {s.topics} 个知识点 · 掌握 = 稳定期 ≥ 21 天
       </div>
-
       <div className="card">
-        <div className="section-label">近 7 天复习量</div>
+        <div className="section-label">LAST 7 DAYS</div>
         <div className="chart-values">
           {s.week.map((w) => (
-            <span key={w.day} className="stat-value">{w.n > 0 ? w.n : ''}</span>
+            <span key={w.day} style={{ visibility: w.n > 0 ? 'visible' : 'hidden' }}>{w.n}</span>
           ))}
         </div>
         <div className="chart">
           {s.week.map((w) => (
             <div key={w.day} className={`chart-col${w.n === 0 ? ' zero' : ''}`}>
-              <i style={w.n > 0 ? { height: `${Math.max(6, (w.n / maxWeek) * 100)}%` } : undefined} />
+              <i style={w.n > 0 ? { height: `${Math.max(4, (w.n / maxWeek) * 100)}%` } : undefined} />
             </div>
           ))}
         </div>
@@ -93,21 +92,21 @@ export default function Stats() {
       </div>
 
       <div className="card">
-        <div className="section-label">生成额度</div>
+        <div className="section-label">QUOTA</div>
         {me ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span className="muted">本月已用</span>
-              <span className="stat-value" style={{ fontSize: 13, fontWeight: 600 }}>
-                {me.used_tokens.toLocaleString()} / {me.quota_tokens.toLocaleString()} tokens（{pct.toFixed(1)}%）
+              <span className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>
+                {me.used_tokens.toLocaleString()} / {me.quota_tokens.toLocaleString()}
               </span>
+              <span className="tag tag-mono tag-gold">{pct.toFixed(1)}%</span>
             </div>
-            <div className="bar" style={{ height: 6 }}>
-              <span className="seg-amber" style={{ width: `${Math.max(0.5, pct)}%` }} />
+            <div className="bar" style={{ height: 5 }}>
+              <span className="seg-gold" style={{ width: `${Math.max(2, pct)}%` }} />
             </div>
           </>
         ) : (
-          <div className="muted">离线中，无法获取云端额度。</div>
+          <div className="muted">离线中</div>
         )}
       </div>
     </div>

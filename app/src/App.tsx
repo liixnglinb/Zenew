@@ -15,24 +15,27 @@ function Shell() {
   const nav = useNavigate()
   return (
     <div className="shell">
+      <div className="ambient" style={{ width: 420, height: 420, top: -140, right: -120 }} />
+      <div className="ambient" style={{ width: 380, height: 380, bottom: -160, right: 240, animationDelay: '3s' }} />
       <aside className="sidebar">
         <div className="brand">
           知新
           <small>ZENEW</small>
         </div>
+        <div style={{ height: 14 }} />
         <NavLink to="/today" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-          <Home size={16} /> 今日
+          <Home size={15} /> 今日
         </NavLink>
         <NavLink to="/courses" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-          <BookOpen size={16} /> 课程
+          <BookOpen size={15} /> 课程
         </NavLink>
         <NavLink to="/stats" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-          <BarChart3 size={16} /> 统计
+          <BarChart3 size={15} /> 统计
         </NavLink>
         <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-          <Settings size={16} /> 设置
+          <Settings size={15} /> 设置
         </NavLink>
-        <div style={{ flex: 1 }} />
+        <div className="spacer" />
         <button
           className="nav-item"
           onClick={() => {
@@ -40,7 +43,7 @@ function Shell() {
             nav('/login')
           }}
         >
-          <LogOut size={16} /> 退出登录
+          <LogOut size={15} /> 退出登录
         </button>
       </aside>
       <main className="main">

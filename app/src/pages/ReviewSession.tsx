@@ -28,7 +28,6 @@ export default function ReviewSession() {
     })()
   }, [])
 
-  // 键盘流：空格显示答案，1-4 打分，1-4 也可选选项，回车下一张
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const item = queue[idx]
@@ -60,37 +59,32 @@ export default function ReviewSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, idx, phase, done])
 
-  if (loading) return <div className="muted">载入中…</div>
+  if (loading) return <div className="muted">···</div>
 
   if (done || queue.length === 0) {
     const s = done || { total: 0, again: 0, ms: 0 }
     return (
-      <div className="review-stage">
-        <div className="page-title" style={{ marginBottom: 16 }}>
-          {queue.length === 0 && !done ? '没有待学习的卡片' : '本次学习完成'}
+      <div className="review-stage page-in">
+        <div className="kicker">SESSION / DONE</div>
+        <div className="page-title" style={{ marginBottom: 20 }}>
+          {queue.length === 0 && !done ? '没有待学习的卡片' : '完成'}
         </div>
         {done && (
-          <div className="card">
-            <div style={{ display: 'flex', gap: 28, alignItems: 'baseline' }}>
-              <div>
-                <div className="display-num" style={{ fontSize: 42 }}>{s.total}</div>
-                <div className="muted">张完成</div>
-              </div>
-              <div style={{ width: 1, height: 40, background: 'var(--line)' }} />
-              <div style={{ display: 'flex', gap: 20, color: 'var(--ink-2)', fontSize: 13 }}>
-                <span>标记「忘了」 {s.again}</span>
-                <span>用时 {Math.round(s.ms / 1000)} 秒</span>
-              </div>
+          <div className="card" style={{ display: 'flex', gap: 26, alignItems: 'baseline', padding: '26px 30px' }}>
+            <div>
+              <div className="display-num" style={{ fontSize: 44 }}>{s.total}</div>
+              <div className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: 1 }}>张完成</div>
             </div>
-            <div className="muted" style={{ marginTop: 14, fontSize: 12.5 }}>
-              标记「忘了」不是失败——这正是调度器判断「什么时候该再见到你」的依据。
-            </div>
+            <div style={{ width: 1, height: 42, background: 'var(--line)' }} />
+            <span className="tag">{s.again} 次忘了</span>
+            <span className="tag">{Math.round(s.ms / 1000)}s</span>
           </div>
         )}
-        {queue.length === 0 && !done && <div className="muted">先去课程页生成一些卡片吧。</div>}
+        {queue.length === 0 && !done && (
+          <button className="btn btn-primary" onClick={() => nav('/courses')}>去生成卡片</button>
+        )}
         <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
           <button className="btn btn-primary" onClick={() => nav('/today')}>回到今日</button>
-          <button className="btn" onClick={() => nav('/courses')}>继续生成卡片</button>
         </div>
       </div>
     )
@@ -148,35 +142,31 @@ export default function ReviewSession() {
     <div className="review-stage">
       <div className="review-top">
         <div className="review-progress">
-          <span className="review-progress-num">{idx + 1} / {queue.length}</span>
+          <span className="review-progress-num">{String(idx + 1).padStart(2, '0')} / {String(queue.length).padStart(2, '0')}</span>
           <div className="bar">
-            <span className="seg-teal" style={{ width: `${((idx + 1) / queue.length) * 100}%` }} />
+            <span className="seg-gold" style={{ width: `${((idx + 1) / queue.length) * 100}%` }} />
           </div>
         </div>
         <span className="review-loc">{item.course_name} · {item.topic_title}</span>
       </div>
 
-      <div className="review-card">
+      <div className="review-card" key={`${item.id}-${idx}`}>
         <div className="review-kind">
-          <span className="tag tag-plain">
-            {item.type === 'basic' ? '回忆' : item.type === 'why' ? '解释' : '选择'}
+          <span className="tag tag-mono">
+            {item.type === 'basic' ? 'RECALL' : item.type === 'why' ? 'WHY' : 'CHOICE'}
           </span>
         </div>
 
         <div className="review-front">{item.front}</div>
 
         {choices && (
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 16 }}>
             {choices.map((c, i) => {
               const revealed = phase === 'answered'
               const isRight = i === (item.answer_index ?? 0)
               const cls = revealed ? (isRight ? 'right' : i === picked ? 'wrong' : 'dim') : ''
               return (
-                <button
-                  key={i}
-                  className={`choice-btn ${cls}`}
-                  onClick={() => !revealed && pickChoice(i)}
-                >
+                <button key={i} className={`choice-btn ${cls}`} onClick={() => !revealed && pickChoice(i)}>
                   <span className="choice-key">{i + 1}</span>
                   <span style={{ flex: 1 }}>{c}</span>
                   {revealed && isRight && <Check size={15} style={{ color: 'var(--green)' }} />}
@@ -193,13 +183,13 @@ export default function ReviewSession() {
 
         {!choices && phase === 'front' && (
           <>
-            <div style={{ marginTop: 22 }}>
+            <div style={{ marginTop: 24 }}>
               <button className="btn btn-primary btn-lg" onClick={() => setPhase('answered')}>
                 显示答案
               </button>
             </div>
             <div className="review-hint">
-              先在脑子里回忆，再按 <kbd>空格</kbd> 核对
+              先回忆 · <kbd>空格</kbd> 翻面
             </div>
           </>
         )}
@@ -207,32 +197,24 @@ export default function ReviewSession() {
         {phase === 'answered' && (
           <div>
             <div className="review-back">
-              <span className="muted">答案</span>
+              <span className="muted">Answer</span>
               {item.back}
             </div>
             <div className="explain-box">
-              <b>为什么</b>　{item.explanation}
+              <b>Why</b>{item.explanation}
             </div>
             {choices ? (
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: 18 }}>
                 <button className="btn btn-primary" onClick={advance}>
-                  {idx + 1 >= queue.length ? '完成' : '下一张'} <kbd style={{ background: '#fff', borderColor: 'var(--line)' }}>⏎</kbd>
+                  {idx + 1 >= queue.length ? '完成' : '下一张'} <kbd style={{ background: 'var(--gold-wash)', borderColor: 'var(--gold-line)', color: 'var(--gold-deep)' }}>⏎</kbd>
                 </button>
               </div>
             ) : (
               <div className="grade-row">
-                <button className="btn g-again" onClick={() => selfGrade(1)}>
-                  忘了<small><kbd>1</kbd></small>
-                </button>
-                <button className="btn g-hard" onClick={() => selfGrade(2)}>
-                  想起来了<small><kbd>2</kbd></small>
-                </button>
-                <button className="btn g-good" onClick={() => selfGrade(3)}>
-                  记得<small><kbd>3</kbd></small>
-                </button>
-                <button className="btn g-easy" onClick={() => selfGrade(4)}>
-                  秒答<small><kbd>4</kbd></small>
-                </button>
+                <button className="btn g-again" onClick={() => selfGrade(1)}>忘了<small>1</small></button>
+                <button className="btn g-hard" onClick={() => selfGrade(2)}>想起<small>2</small></button>
+                <button className="btn g-good" onClick={() => selfGrade(3)}>记得<small>3</small></button>
+                <button className="btn g-easy" onClick={() => selfGrade(4)}>秒答<small>4</small></button>
               </div>
             )}
           </div>

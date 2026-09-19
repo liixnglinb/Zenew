@@ -65,7 +65,7 @@ export default function CourseDetail() {
         )
         added++
       }
-      setNotice(`《${title}》已生成 ${added} 张卡片${r.rejected?.length ? `，${r.rejected.length} 张未通过质检被丢弃` : ''}`)
+      setNotice(`+${added} 张${r.rejected?.length ? ` · 质检丢弃 ${r.rejected.length}` : ''}`)
       await load()
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : '生成失败')
@@ -75,48 +75,44 @@ export default function CourseDetail() {
   }
 
   return (
-    <div>
+    <div className="page-in">
+      <div className="kicker">COURSE / {String(chapters.length).padStart(2, '0')} CH</div>
       <div className="page-title">{courseName}</div>
-      <div className="page-sub">点击知识点右侧按钮生成练习卡片；生成后即可在「今日」开始复习</div>
       {notice && (
-        <div className="tag tag-ok" style={{ display: 'inline-flex', marginBottom: 14, padding: '5px 12px' }}>
-          {notice}
-        </div>
+        <span className="tag tag-ok fade-up" style={{ marginTop: 14 }}>{notice}</span>
       )}
       {err && <div className="error-text">{err}</div>}
 
-      {chapters.map(({ ch, topics }) => (
-        <div key={ch.id} style={{ marginBottom: 26 }}>
-          <div className="section-label">
-            {ch.title}
-          </div>
-          <div className="rows">
-            {topics.map((t) => (
-              <div key={t.id} className="row" style={{ cursor: 'default' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="row-title" style={{ fontWeight: 500 }}>{t.title}</div>
-                  {t.stat.total > 0 && (
-                    <div className="bar" style={{ width: 160, marginTop: 6 }}>
-                      <span className="seg-ok" style={{ width: `${(t.stat.mastered / t.stat.total) * 100}%` }} />
-                      <span className="seg-amber" style={{ width: `${((t.stat.total - t.stat.mastered) / t.stat.total) * 100}%` }} />
-                    </div>
-                  )}
+      <div style={{ marginTop: 26 }}>
+        {chapters.map(({ ch, topics }, ci) => (
+          <div key={ch.id} style={{ marginBottom: 26 }}>
+            <div className="section-label">
+              CH {String(ci + 1).padStart(2, '0')} — {ch.title}
+            </div>
+            <div className="rows">
+              {topics.map((t) => (
+                <div key={t.id} className="row" style={{ cursor: 'default' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="row-title" style={{ fontWeight: 500 }}>{t.title}</div>
+                    {t.stat.total > 0 && (
+                      <div className="bar" style={{ width: 140, marginTop: 6 }}>
+                        <span className="seg-ok" style={{ width: `${(t.stat.mastered / t.stat.total) * 100}%` }} />
+                        <span className="seg-gold" style={{ width: `${((t.stat.total - t.stat.mastered) / t.stat.total) * 100}%` }} />
+                      </div>
+                    )}
+                  </div>
+                  <span className="row-meta" style={{ minWidth: 70, textAlign: 'right' }}>
+                    {t.stat.total > 0 ? `${t.stat.mastered}/${t.stat.total}` : '—'}
+                  </span>
+                  <button className="btn btn-sm" disabled={genning !== null} onClick={() => generate(t.id, t.title)}>
+                    {genning === t.id ? '···' : t.stat.total > 0 ? '+5' : '生成'}
+                  </button>
                 </div>
-                <div className="row-meta" style={{ minWidth: 84, textAlign: 'right' }}>
-                  {t.stat.total > 0 ? (
-                    <span className="stat-value">{t.stat.mastered}/{t.stat.total} 掌握</span>
-                  ) : (
-                    <span style={{ color: 'var(--ink-3)' }}>尚无卡片</span>
-                  )}
-                </div>
-                <button className="btn btn-sm" disabled={genning !== null} onClick={() => generate(t.id, t.title)}>
-                  {genning === t.id ? '生成中…' : t.stat.total > 0 ? '再加 5 张' : '生成卡片'}
-                </button>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
