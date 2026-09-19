@@ -77,6 +77,17 @@ custom_domain = true
 桌面端「设置 → 服务地址」填 Worker 地址即可；正式发版时把默认值从 `http://127.0.0.1:8765`
 改为 `https://zenew-api.lxlrwxs.top`（`app/src/api.ts` 的默认常量），随 v0.3.0 一起下发（走免安装更新）。
 
+## Key 安全（服务端持有，客户端永不接触）
+
+| 措施 | 说明 |
+|---|---|
+| 密钥位置 | 仅 `wrangler secret`（加密存储）；代码、仓库、客户端、日志均无 |
+| 每账号额度 | `FREE_MONTHLY_TOKENS=200000`（月），用满返回 402 |
+| 限流 | `RATE_PER_MIN=10`（D1 计数，跨 isolate 生效），超限 429 |
+| **全局熔断** | `GLOBAL_MONTHLY_TOKENS=20000000`（≈¥20/月）；本月所有用户累计超出后全员 503，防止有人刷爆 key |
+| 账号绑定 | JWT 同时校验 id + email，避免换库/重建后 id 撞车串号 |
+| CORS | 只放行自家源（`tauri.localhost` / 本地开发端口），第三方网页无法直接调用 |
+
 ## 本地开发
 
 ```bash

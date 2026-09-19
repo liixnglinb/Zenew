@@ -233,7 +233,7 @@ app.post('/auth/register', async (c) => {
     .bind(email, pwHash, saltHex, nowIso())
     .run()
   const userId = Number(res.meta.last_row_id)
-  return c.json({ token: await makeToken(c.env, userId, email), email })
+  return c.json({ token: await makeToken(c.env, userId), email })
 })
 
 app.post('/auth/login', async (c) => {
@@ -245,7 +245,7 @@ app.post('/auth/login', async (c) => {
   if (!user) return err(c, 401, '邮箱或密码错误')
   const attempt = await hashPw(String(body.password ?? ''), user.salt, iterations(c.env))
   if (attempt !== user.pw_hash) return err(c, 401, '邮箱或密码错误')
-  return c.json({ token: await makeToken(c.env, user.id, email), email })
+  return c.json({ token: await makeToken(c.env, user.id), email })
 })
 
 app.get('/me', auth, async (c) => {

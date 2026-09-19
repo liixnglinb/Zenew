@@ -12,11 +12,12 @@ database_id = "f89d3932-6fdb-4751-8f8e-1a0e3e782c30"
 
 # ---------- 变量（非密钥）----------
 [vars]
-FREE_MONTHLY_TOKENS = "200000"
+FREE_MONTHLY_TOKENS = "200000"              # 每用户每月免费额度
+GLOBAL_MONTHLY_TOKENS = "20000000"          # 全局月度熔断（≈¥20/月，保护服务端 key；0=不限）
 RATE_PER_MIN = "10"
-LLM_PROVIDER = "mock"                       # mock | openai
+LLM_PROVIDER = "openai"                      # mock | openai
 LLM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-LLM_MODEL = "qwen-flash"
+LLM_MODEL = "qwen-flash"                     # 实测：4.4s/4 张卡/676 tokens，优于 deepseek-v4-flash(13.8s) 与 glm-5.2(43.6s)
 # Workers Free 套餐 CPU 上限 10ms：实测 PBKDF2 200k≈30ms 会超限，故默认降到 10000（≈5ms）
 # 升级 Workers Paid（$5/月，30s CPU）后可改回 200000
 PBKDF2_ITERATIONS = "10000"

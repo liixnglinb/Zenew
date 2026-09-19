@@ -15,3 +15,4 @@ release/
 ui-*.png
 e2e-*.png
 docs/screenshots/
+.secrets/
