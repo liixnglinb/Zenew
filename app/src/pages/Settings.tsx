@@ -198,6 +198,17 @@ export default function SettingsPage() {
           </div>
           <span className="tag tag-mono">{ver || '…'} · FSRS</span>
         </div>
+        <div className="settings-row">
+          <div style={{ flex: 1 }}>
+            <div className="row-title" style={{ fontWeight: 500, fontSize: 13.5 }}>用户协议与安全声明</div>
+            <div className="row-meta" style={{ fontFamily: 'var(--mono)', fontSize: 10.5 }}>
+              含禁止反向工程与 AI 破解条款
+            </div>
+          </div>
+          <button className="btn btn-sm" onClick={() => openUrl('https://lxlrwxs.top/zenew/terms/').catch(() => {})}>
+            查看
+          </button>
+        </div>
       </div>
     </div>
   )
