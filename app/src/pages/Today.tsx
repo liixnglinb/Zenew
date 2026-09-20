@@ -1,18 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDb, loadSession, localDayKey } from '../db'
-import { Play, Flame, Clock3, Layers } from 'lucide-react'
+import { daysUntil } from './Exams'
+import { Play, Flame, Clock3, Layers, CalendarDays } from 'lucide-react'
 
 export default function Today() {
   const nav = useNavigate()
   const [s, setS] = useState<{ due: number; fresh: number; streak: number } | null>(null)
   const [resume, setResume] = useState<{ idx: number; total: number } | null>(null)
+  const [exam, setExam] = useState<{ title: string; days: number } | null>(null)
 
   useEffect(() => {
     ;(async () => {
       try {
         const saved = await loadSession()
         if (saved) setResume({ idx: saved.idx, total: saved.card_ids.length })
+      } catch {}
+      try {
+        const db = await getDb()
+        const rows = await db.select<{ title: string; exam_date: string }[]>(
+          'SELECT title, exam_date FROM exam WHERE exam_date >= ? ORDER BY exam_date ASC LIMIT 1',
+          [localDayKey()]
+        )
+        if (rows.length) setExam({ title: rows[0].title, days: daysUntil(rows[0].exam_date) })
       } catch {}
       try {
         const db = await getDb()
@@ -69,6 +79,11 @@ export default function Today() {
         {s && s.streak > 0 && (
           <span className="streak-pill fade-up">
             <Flame size={12} /> {s.streak} 天
+          </span>
+        )}
+        {exam && (
+          <span className={`streak-pill fade-up${exam.days <= 7 ? ' is-urgent' : ''}`} title={`最近考试：${exam.title}`} onClick={() => nav('/exams')} style={{ cursor: 'pointer' }}>
+            <CalendarDays size={12} /> {exam.days === 0 ? '今天考试' : `${exam.title} ${exam.days} 天后`}
           </span>
         )}
       </div>

@@ -22,9 +22,13 @@ CREATE TABLE IF NOT EXISTS card(id INTEGER PRIMARY KEY AUTOINCREMENT, topic_id I
 CREATE TABLE IF NOT EXISTS card_state(card_id INTEGER PRIMARY KEY, due TEXT NOT NULL, stability REAL NOT NULL DEFAULT 0, difficulty REAL NOT NULL DEFAULT 0, elapsed_days REAL NOT NULL DEFAULT 0, scheduled_days INTEGER NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, lapses INTEGER NOT NULL DEFAULT 0, state INTEGER NOT NULL DEFAULT 0, last_review TEXT);
 CREATE TABLE IF NOT EXISTS review_log(id INTEGER PRIMARY KEY AUTOINCREMENT, card_id INTEGER NOT NULL, rating INTEGER NOT NULL, reviewed_at TEXT NOT NULL, duration_ms INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS exam(id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER NOT NULL, title TEXT NOT NULL, exam_date TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS import_segment(id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER NOT NULL, seg_index INTEGER NOT NULL, chapter TEXT NOT NULL, text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', error TEXT);
 CREATE TABLE IF NOT EXISTS _zenew_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_card_state_due ON card_state(due);
 CREATE INDEX IF NOT EXISTS idx_review_log_reviewed_at ON review_log(reviewed_at);
+CREATE INDEX IF NOT EXISTS idx_import_segment_course ON import_segment(course_id, status);
+CREATE INDEX IF NOT EXISTS idx_topic_course ON topic(course_id, parent_id);
+CREATE INDEX IF NOT EXISTS idx_card_topic ON card(topic_id);
 `
 
 /** 本地日期 key（东八区等按本机时区，避免 UTC 8 小时错位） */
@@ -54,11 +58,24 @@ async function doEnsureSchema(): Promise<void> {
   for (const stmt of SCHEMA_V1.split(';').map((s) => s.trim()).filter(Boolean)) {
     await db.execute(stmt)
   }
+  await migrate(db)
   const seeded = await db.select<{ value: string }[]>("SELECT value FROM _zenew_meta WHERE key='seed_version'")
   if (seeded.length === 0) {
     await seedCourses(db)
     await db.execute("INSERT INTO _zenew_meta(key, value) VALUES('seed_version','1')")
   }
+}
+
+/** 增量迁移：给已存在的库补列（SQLite 无 ALTER ... IF NOT EXISTS） */
+async function migrate(db: Database): Promise<void> {
+  const cols = await db.select<{ name: string }[]>('PRAGMA table_info(course)')
+  const have = new Set(cols.map((c) => c.name))
+  const add = async (name: string, ddl: string) => {
+    if (!have.has(name)) await db.execute(`ALTER TABLE course ADD COLUMN ${ddl}`)
+  }
+  await add('import_status', "import_status TEXT NOT NULL DEFAULT 'none'") // none|parsing|processing|paused|done|error
+  await add('import_name', 'import_name TEXT')
+  await add('import_total', 'import_total INTEGER NOT NULL DEFAULT 0')
 }
 
 async function seedCourses(db: Database): Promise<void> {

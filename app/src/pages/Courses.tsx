@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDb, insertOutline, type CourseRow } from '../db'
 import { genOutline, ApiError } from '../api'
-import { runImportPipeline } from '../pdf'
+import { runImportPipeline, resumeImport, dropPendingImport, listPendingImports, type PendingImport } from '../pdf'
 import { Plus, ChevronRight, FileUp, Trash2 } from 'lucide-react'
 
 interface CourseInfo extends CourseRow {
@@ -43,6 +43,8 @@ export default function Courses() {
   const [err, setErr] = useState('')
   const [imp, setImp] = useState<ImportState>(EMPTY_IMP)
   const [confirmDel, setConfirmDel] = useState<number | null>(null)
+  const [pending, setPending] = useState<PendingImport[]>([])
+  const [targetCourse, setTargetCourse] = useState<number | ''>('') // ''=新建课程
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
@@ -61,6 +63,7 @@ export default function Courses() {
 
   useEffect(() => {
     load().catch(console.error)
+    listPendingImports().then(setPending).catch(() => {})
   }, [])
 
   /** 导入期间定时刷新列表（知识点/卡片渐进出现） */
@@ -123,14 +126,21 @@ export default function Courses() {
   const startImport = async (file: File) => {
     if (imp.running) return
     setImp({ ...EMPTY_IMP, running: true, phase: 'running', stage: 'reading', detail: file.name })
+    const existing = typeof targetCourse === 'number' ? targetCourse : undefined
+    const courseName = existing ? (list.find((c) => c.id === existing)?.name || '') : file.name.replace(/\.pdf$/i, '')
     try {
-      const r = await runImportPipeline(file, file.name.replace(/\.pdf$/i, ''), {
-        onStage: (stage, detail) => setImp((s) => ({ ...s, stage, detail })),
-        onCourseCreated: (cid) => setImp((s) => ({ ...s, courseId: cid })),
-        onChapterReady: () => setImp((s) => ({ ...s, chapters: s.chapters + 1 })), // 仅新章触发（原来每章触发两次）
-        onTopics: (added) => setImp((s) => ({ ...s, topics: s.topics + added })),
-        onCards: (n) => setImp((s) => ({ ...s, cards: n })),
-      })
+      const r = await runImportPipeline(
+        file,
+        courseName,
+        { existingCourseId: existing },
+        {
+          onStage: (stage, detail) => setImp((s) => ({ ...s, stage, detail })),
+          onCourseCreated: (cid) => setImp((s) => ({ ...s, courseId: cid })),
+          onChapterReady: () => setImp((s) => ({ ...s, chapters: s.chapters + 1 })),
+          onTopics: (added) => setImp((s) => ({ ...s, topics: s.topics + added })),
+          onCards: (n) => setImp((s) => ({ ...s, cards: n })),
+        }
+      )
       setImp((s) => ({
         ...s,
         running: false,
@@ -138,7 +148,7 @@ export default function Courses() {
         stage: r.quotaExhausted ? 'error' : 'done',
         failed: r.failedSegments,
         detail: r.quotaExhausted
-          ? `额度不足已停止：${r.chapters} 章 · ${r.topics} 知识点 · ${r.cards} 张卡（可充值后在课程页补齐）`
+          ? `额度不足已暂停：${r.chapters} 章 · ${r.topics} 知识点 · ${r.cards} 张卡（充值后可在上方「继续导入」续传）`
           : `完成：${r.chapters} 章 · ${r.topics} 个知识点 · ${r.cards} 张卡${r.failedSegments ? ` · 失败 ${r.failedSegments} 段` : ''}`,
         courseId: r.courseId,
       }))
@@ -152,6 +162,41 @@ export default function Courses() {
       }))
     }
     await load()
+    listPendingImports().then(setPending).catch(() => {})
+  }
+
+  /** 断点续传未完成的导入 */
+  const doResume = async (p: PendingImport) => {
+    if (imp.running) return
+    setImp({ ...EMPTY_IMP, running: true, phase: 'running', stage: 'extracting', detail: `继续导入 ${p.name}`, courseId: p.courseId })
+    try {
+      const r = await resumeImport(p.courseId, {
+        onStage: (stage, detail) => setImp((s) => ({ ...s, stage, detail })),
+        onChapterReady: () => setImp((s) => ({ ...s, chapters: s.chapters + 1 })),
+        onTopics: (added) => setImp((s) => ({ ...s, topics: s.topics + added })),
+        onCards: (n) => setImp((s) => ({ ...s, cards: n })),
+      })
+      setImp((s) => ({
+        ...s,
+        running: false,
+        phase: r.quotaExhausted ? 'error' : 'done',
+        stage: r.quotaExhausted ? 'error' : 'done',
+        failed: r.failedSegments,
+        detail: r.quotaExhausted
+          ? `额度仍不足：${r.topics} 知识点 · ${r.cards} 张卡`
+          : `续传完成：${r.chapters} 章 · ${r.topics} 个知识点 · ${r.cards} 张卡${r.failedSegments ? ` · 失败 ${r.failedSegments} 段` : ''}`,
+      }))
+    } catch (e) {
+      setImp((s) => ({ ...s, running: false, phase: 'error', stage: 'error', detail: e instanceof Error ? e.message : '续传失败' }))
+    }
+    await load()
+    listPendingImports().then(setPending).catch(() => {})
+  }
+
+  const doDrop = async (p: PendingImport) => {
+    await dropPendingImport(p.courseId).catch(() => {})
+    await load()
+    listPendingImports().then(setPending).catch(() => {})
   }
 
   return (
@@ -190,6 +235,28 @@ export default function Courses() {
             {imp.failed > 0 && <span style={{ color: 'var(--red)' }}>失败 {imp.failed} 段</span>}
             {imp.running && <span style={{ marginLeft: 'auto' }}>可随时离开本页，后台继续</span>}
           </div>
+        </div>
+      )}
+
+      {pending.length > 0 && !imp.running && (
+        <div className="card fade-up" style={{ marginTop: 16, padding: '16px 22px', border: '1px solid var(--gold-line)', background: 'var(--gold-wash)' }}>
+          {pending.map((p) => (
+            <div key={p.courseId} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <b style={{ fontSize: 13.5 }}>导入未完成</b>
+              <span className="row-meta" style={{ flex: 1, fontSize: 11 }}>
+                《{p.name}》{p.fileName ? ` · ${p.fileName}` : ''} · 已处理 {p.done}/{p.total || '?'} 段{p.failed ? ` · 失败 ${p.failed}` : ''}
+                {p.status === 'parsing' ? ' · 解析未完成，需重新选择文件' : p.status === 'paused' ? ' · 已暂停（额度不足）' : ''}
+              </span>
+              {p.status !== 'parsing' && (
+                <button className="btn btn-sm btn-primary" disabled={imp.running} onClick={() => doResume(p)}>
+                  继续导入
+                </button>
+              )}
+              <button className="btn btn-sm" onClick={() => doDrop(p)}>
+                放弃剩余
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -246,30 +313,26 @@ export default function Courses() {
         )}
       </div>
 
-      <div className="section-label" style={{ marginTop: 30 }}>NEW COURSE</div>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <input
+      <div className="section-label" style={{ marginTop: 30 }}>IMPORT PDF</div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select
           className="input"
-          placeholder="输入课程名，生成大纲"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && createByName()}
-        />
-        <button className="btn btn-primary" disabled={busy || imp.running || !newName.trim()} onClick={createByName}>
-          <Plus size={14} /> {busy ? '生成中' : '生成大纲'}
-        </button>
-      </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-        <input
-          className="input"
-          placeholder="导入自己的教材 PDF（本地解析，扫描页自动跳过）"
-          readOnly
-          onClick={() => !imp.running && fileRef.current?.click()}
-          style={{ cursor: imp.running ? 'not-allowed' : 'pointer', color: 'var(--ink-2)' }}
-        />
+          style={{ width: 220, cursor: 'pointer' }}
+          value={targetCourse}
+          onChange={(e) => setTargetCourse(e.target.value === '' ? '' : Number(e.target.value))}
+          title="导入到新建课程，或追加到已有课程"
+        >
+          <option value="">导入为新课程</option>
+          {list.map((c) => (
+            <option key={c.id} value={c.id}>
+              追加到：{c.name}
+            </option>
+          ))}
+        </select>
         <button className="btn" disabled={imp.running} onClick={() => fileRef.current?.click()}>
-          <FileUp size={14} /> {imp.running ? '导入中…' : '选择文件'}
+          <FileUp size={14} /> {imp.running ? '导入中…' : '选择 PDF'}
         </button>
+        <span className="row-meta" style={{ fontSize: 11 }}>本地解析，扫描页自动跳过；中断后可续传</span>
         <input
           ref={fileRef}
           type="file"
@@ -281,6 +344,20 @@ export default function Courses() {
             e.target.value = ''
           }}
         />
+      </div>
+
+      <div className="section-label" style={{ marginTop: 22 }}>NEW COURSE</div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <input
+          className="input"
+          placeholder="输入课程名，生成大纲"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && createByName()}
+        />
+        <button className="btn btn-primary" disabled={busy || imp.running || !newName.trim()} onClick={createByName}>
+          <Plus size={14} /> {busy ? '生成中' : '生成大纲'}
+        </button>
       </div>
       {err && <div className="error-text">{err}</div>}
     </div>

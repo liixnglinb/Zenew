@@ -44,6 +44,29 @@ export default function CourseDetail() {
   const [batch, setBatch] = useState<BatchState>({ running: false, total: 0, done: 0, current: '', added: 0, rejected: 0, failed: 0, stop: false })
   const batchRef = useRef(batch)
   batchRef.current = batch
+  const [expanded, setExpanded] = useState<number | null>(null)
+  const [cards, setCards] = useState<{ id: number; front: string; back: string; suspended: number }[]>([])
+
+  /** 展开知识点看卡片（可暂停/恢复） */
+  const toggleTopic = async (topicId: number) => {
+    if (expanded === topicId) {
+      setExpanded(null)
+      return
+    }
+    setExpanded(topicId)
+    const db = await getDb()
+    const rows = await db.select<{ id: number; front: string; back: string; suspended: number }[]>(
+      'SELECT id, front, back, suspended FROM card WHERE topic_id=? ORDER BY id',
+      [topicId]
+    )
+    setCards(rows)
+  }
+
+  const toggleSuspend = async (cardId: number, next: boolean) => {
+    const db = await getDb()
+    await db.execute('UPDATE card SET suspended=? WHERE id=?', [next ? 1 : 0, cardId])
+    setCards((cs) => cs.map((c) => (c.id === cardId ? { ...c, suspended: next ? 1 : 0 } : c)))
+  }
 
   const load = async (): Promise<ChapterBlock[]> => {
     const db = await getDb()
@@ -253,30 +276,53 @@ export default function CourseDetail() {
               <div className="rows">
                 {topics.map((t) => {
                   const ok = t.total >= COVER_MIN
+                  const isOpen = expanded === t.id
                   return (
-                    <div key={t.id} className="row" style={{ cursor: 'default' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="row-title" style={{ fontWeight: 500 }}>
-                          {t.title}
-                          {ok && (
-                            <span style={{ color: 'var(--green)', marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, verticalAlign: 'middle' }}>
-                              <Check size={12} strokeWidth={2.2} /> 已覆盖
-                            </span>
-                          )}
-                        </div>
-                        {t.total > 0 && (
-                          <div className="bar" style={{ width: 140, marginTop: 6 }}>
-                            <span className="seg-ok" style={{ width: `${(t.mastered / t.total) * 100}%` }} />
-                            <span className="seg-gold" style={{ width: `${((t.total - t.mastered) / t.total) * 100}%` }} />
+                    <div key={t.id}>
+                      <div className="row" style={{ padding: '10px 14px 10px 20px' }}>
+                        <button className="row-open" style={{ flex: 1 }} onClick={() => toggleTopic(t.id)} title="展开查看卡片（可暂停单张）">
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="row-title" style={{ fontWeight: 500 }}>
+                              {t.title}
+                              {ok && (
+                                <span style={{ color: 'var(--green)', marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, verticalAlign: 'middle' }}>
+                                  <Check size={12} strokeWidth={2.2} /> 已覆盖
+                                </span>
+                              )}
+                            </div>
+                            {t.total > 0 && (
+                              <div className="bar" style={{ width: 140, marginTop: 6 }}>
+                                <span className="seg-ok" style={{ width: `${(t.mastered / t.total) * 100}%` }} />
+                                <span className="seg-gold" style={{ width: `${((t.total - t.mastered) / t.total) * 100}%` }} />
+                              </div>
+                            )}
                           </div>
-                        )}
+                          <span className="row-meta" style={{ minWidth: 78, textAlign: 'right' }}>
+                            {t.total > 0 ? `${t.total} 张` : '—'}
+                          </span>
+                        </button>
+                        <button className="btn btn-sm" disabled={batch.running || genning === t.id} onClick={() => generate(t.id, t.title, ch.title)}>
+                          {genning === t.id ? '···' : ok ? '+5' : '生成'}
+                        </button>
                       </div>
-                      <span className="row-meta" style={{ minWidth: 78, textAlign: 'right' }}>
-                        {t.total > 0 ? `${t.total} 张` : '—'}
-                      </span>
-                      <button className="btn btn-sm" disabled={batch.running || genning === t.id} onClick={() => generate(t.id, t.title, ch.title)}>
-                        {genning === t.id ? '···' : ok ? '+5' : '生成'}
-                      </button>
+                      {isOpen && (
+                        <div className="card-list fade-up">
+                          {cards.length === 0 && <div className="muted" style={{ fontSize: 12.5 }}>该知识点还没有卡片</div>}
+                          {cards.map((c) => (
+                            <div key={c.id} className={`card-item${c.suspended ? ' is-suspended' : ''}`}>
+                              <span className="card-item-front" title={c.front}>{c.front}</span>
+                              <button
+                                className="btn btn-sm"
+                                style={c.suspended ? undefined : { color: 'var(--ink-3)' }}
+                                title={c.suspended ? '恢复这张卡进入学习队列' : '暂停这张卡（不再出现在复习队列）'}
+                                onClick={() => toggleSuspend(c.id, !c.suspended)}
+                              >
+                                {c.suspended ? '恢复' : '暂停'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 })}

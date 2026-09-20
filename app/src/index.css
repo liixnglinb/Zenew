@@ -290,6 +290,27 @@ kbd {
   font-size: 12.5px; color: var(--ink-2); margin-top: 12px;
 }
 .today-hint .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+.streak-pill.is-urgent { background: var(--red-wash); border-color: transparent; color: var(--red); }
+.streak-pill.is-urgent svg { color: var(--red); }
+
+/* 知识点展开后的卡片清单（暂停/恢复） */
+.card-list {
+  margin: 6px 0 10px 22px;
+  padding: 8px 0 4px 16px;
+  border-left: 2px solid var(--gold-line);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.card-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--paper-2);
+}
+.card-item-front {
+  flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-item.is-suspended { opacity: .5; }
+.card-item.is-suspended .card-item-front { text-decoration: line-through; }
 
 /* ---------------- 复习（沉浸） ---------------- */
 .review-stage { max-width: 620px; margin: 0 auto; padding-top: 5vh; }

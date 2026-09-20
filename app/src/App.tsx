@@ -1,6 +1,6 @@
 import { HashRouter, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { BookOpen, BarChart3, Home, LogOut, Settings } from 'lucide-react'
+import { BookOpen, BarChart3, CalendarDays, Home, LogOut, Settings } from 'lucide-react'
 import { ApiError, fetchMe, getToken, setToken, type Me } from './api'
 import { isTauri, ensureSchema } from './db'
 import TitleBar from './components/TitleBar'
@@ -11,6 +11,7 @@ import CourseDetail from './pages/CourseDetail'
 import ReviewSession from './pages/ReviewSession'
 import Stats from './pages/Stats'
 import SettingsPage from './pages/Settings'
+import Exams from './pages/Exams'
 
 function Shell() {
   const nav = useNavigate()
@@ -29,6 +30,9 @@ function Shell() {
         </NavLink>
         <NavLink to="/courses" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
           <BookOpen size={15} /> 课程
+        </NavLink>
+        <NavLink to="/exams" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+          <CalendarDays size={15} /> 考试
         </NavLink>
         <NavLink to="/stats" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
           <BarChart3 size={15} /> 统计
@@ -54,6 +58,7 @@ function Shell() {
             <Route path="/today" element={<Today />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/exams" element={<Exams />} />
             <Route path="/review" element={<ReviewSession />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/settings" element={<SettingsPage />} />
