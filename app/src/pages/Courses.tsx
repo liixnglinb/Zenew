@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getDb, insertOutline, type CourseRow } from '../db'
 import { genOutline, ApiError } from '../api'
 import { runImportPipeline, resumeImport, dropPendingImport, listPendingImports, type PendingImport } from '../pdf'
+import Select from '../components/Select'
 import { Plus, ChevronRight, FileUp, Trash2 } from 'lucide-react'
 
 interface CourseInfo extends CourseRow {
@@ -315,20 +316,16 @@ export default function Courses() {
 
       <div className="section-label" style={{ marginTop: 30 }}>IMPORT PDF</div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select
-          className="input"
-          style={{ width: 220, cursor: 'pointer' }}
-          value={targetCourse}
-          onChange={(e) => setTargetCourse(e.target.value === '' ? '' : Number(e.target.value))}
+        <Select
+          value={targetCourse === '' ? '' : String(targetCourse)}
+          onChange={(v) => setTargetCourse(v === '' ? '' : Number(v))}
+          width={230}
           title="导入到新建课程，或追加到已有课程"
-        >
-          <option value="">导入为新课程</option>
-          {list.map((c) => (
-            <option key={c.id} value={c.id}>
-              追加到：{c.name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: '', label: '导入为新课程' },
+            ...list.map((c) => ({ value: String(c.id), label: `追加到：${c.name}` })),
+          ]}
+        />
         <button className="btn" disabled={imp.running} onClick={() => fileRef.current?.click()}>
           <FileUp size={14} /> {imp.running ? '导入中…' : '选择 PDF'}
         </button>

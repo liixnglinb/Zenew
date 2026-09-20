@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getDb, localDayKey } from '../db'
+import Select from '../components/Select'
+import DatePicker from '../components/DatePicker'
 import { CalendarDays, Plus, Trash2 } from 'lucide-react'
 
 interface ExamRow {
@@ -109,16 +111,16 @@ export default function Exams() {
       </div>
 
       <div className="section-label" style={{ marginTop: 28 }}>NEW EXAM</div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <select className="input" style={{ width: 190, cursor: 'pointer' }} value={courseId} onChange={(e) => setCourseId(Number(e.target.value))}>
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Select
+          value={courseId === '' ? '' : String(courseId)}
+          onChange={(v) => setCourseId(Number(v))}
+          width={200}
+          placeholder="选择课程"
+          options={courses.map((c) => ({ value: String(c.id), label: c.name }))}
+        />
         <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder="考试名称（如 期末考试）" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <input className="input" style={{ width: 170 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <DatePicker value={date} onChange={setDate} width={175} />
         <button className="btn btn-primary" onClick={add}>
           <Plus size={14} /> 添加
         </button>

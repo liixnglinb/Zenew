@@ -20,6 +20,6 @@
     "sql:allow-close",
     "updater:default",
     "process:allow-restart",
-    "opener:allow-open-url"
+    "opener:default"
   ]
 }
