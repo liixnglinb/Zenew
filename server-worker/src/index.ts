@@ -172,6 +172,37 @@ async function overRate(env: Env, userId: number): Promise<boolean> {
   return (row?.n ?? 0) >= limit
 }
 
+/**
+ * 端点级限流（防暴破：登录/注册/兑换码枚举）。
+ * 按「IP+动作」分桶，窗口 windowMs 内最多 max 次原子递增；超限返回 true。
+ * bucket 到期即被下一次请求复用归零，无需清理任务。
+ */
+async function overHitLimit(env: Env, action: string, ip: string, max: number, windowMs: number): Promise<boolean> {
+  const bucket = `${action}:${ip}`
+  const now = Date.now()
+  const resetAt = new Date(now + windowMs).toISOString()
+  // 原子 upsert：过期桶归零重计；命中上限后仍在窗口内 → 计数继续增长但返回超限
+  const r = await env.DB.prepare(
+    `INSERT INTO rate_hits(bucket,hits,reset_at) VALUES(?,1,?)
+     ON CONFLICT(bucket) DO UPDATE SET
+       hits = CASE WHEN reset_at <= ? THEN 1 ELSE hits + 1 END,
+       reset_at = CASE WHEN reset_at <= ? THEN ? ELSE reset_at END
+     WHERE reset_at <= ? OR hits < ?`
+  )
+    .bind(bucket, resetAt, new Date(now).toISOString(), new Date(now).toISOString(), resetAt, new Date(now).toISOString(), max)
+    .run()
+  // changes=0：命中上限且窗口未过 → 超限
+  return r.meta.changes === 0
+}
+
+function clientIp(c: any): string {
+  return (
+    c.req.header('cf-connecting-ip') ||
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown'
+  )
+}
+
 async function logUsage(env: Env, userId: number, endpoint: string, usage: { prompt_tokens?: number; completion_tokens?: number }) {
   await env.DB.prepare(
     'INSERT INTO usage_log(user_id,endpoint,provider,model,tokens_in,tokens_out,created_at) VALUES(?,?,?,?,?,?,?)'
@@ -304,6 +335,8 @@ app.get('/health', (c) => c.json({ ok: true, provider: c.env.LLM_PROVIDER }))
 app.get('/courses', (c) => c.json(coursesData))
 
 app.post('/auth/register', async (c) => {
+  if (await overHitLimit(c.env, 'register', clientIp(c), 10, 60_000))
+    return err(c, 429, '尝试过于频繁，请一分钟后再试')
   const body: any = await c.req.json().catch(() => ({}))
   const email = String(body.email ?? '').trim().toLowerCase()
   const password = String(body.password ?? '')
@@ -340,6 +373,8 @@ app.post('/auth/register', async (c) => {
 })
 
 app.post('/auth/login', async (c) => {
+  if (await overHitLimit(c.env, 'login', clientIp(c), 10, 60_000))
+    return err(c, 429, '尝试过于频繁，请一分钟后再试')
   const body: any = await c.req.json().catch(() => ({}))
   const email = String(body.email ?? '').trim().toLowerCase()
   const user = await c.env.DB.prepare('SELECT id,pw_hash,salt FROM users WHERE email=?')
@@ -376,6 +411,9 @@ app.get('/billing/my-orders', auth, async (c) => {
 app.post('/billing/redeem', auth, async (c) => {
   const userId = c.get('userId')
   const email = c.get('email')
+  // 兑换码空间 2^40，逐 IP 限速让暴破时间不可行（5 次/分钟 ≈ 全空间需 15 万年）
+  if (await overHitLimit(c.env, 'redeem', clientIp(c), 5, 60_000))
+    return err(c, 429, '尝试过于频繁，请一分钟后再试')
   const body: any = await c.req.json().catch(() => ({}))
   const code = String(body.code ?? '').trim().toUpperCase()
   if (!code) return err(c, 400, '请输入兑换码')
@@ -643,9 +681,9 @@ app.get('/admin/orders', async (c) => {
   if (!(await requireAdmin(c))) return err(c, 401, '管理口令无效')
   const status = c.req.query('status') || 'pending'
   const rows = await c.env.DB.prepare(
-    'SELECT order_no,tier,price_cny,tokens,email,status,code,credited,created_at,paid_at FROM orders WHERE status=? ORDER BY created_at DESC LIMIT 100'
+    `SELECT order_no,tier,price_cny,tokens,email,status,code,credited,created_at,paid_at FROM orders WHERE status${status === 'pending' ? " IN ('pending','confirming')" : '=?'} ORDER BY created_at DESC LIMIT 100`
   )
-    .bind(status)
+    .bind(...(status === 'pending' ? [] : [status]))
     .all()
   return c.json({ orders: rows.results ?? [] })
 })
@@ -654,33 +692,49 @@ app.post('/admin/orders/:no/confirm', async (c) => {
   if (!(await requireAdmin(c))) return err(c, 401, '管理口令无效')
   const no = String(c.req.param('no') || '').trim().toUpperCase()
   const body: any = await c.req.json().catch(() => ({}))
+  // 原子抢占状态位：只有第一笔把 pending → confirming 的写会生效；
+  // 并发/重复确认在这里被挡住（changes=0），杜绝「SELECT 后再 UPDATE」竞态双充值。
+  // confirming 超过 5 分钟视为上次确认中断（进程被杀），允许重新抢占（防卡单）。
+  const claim = await c.env.DB.prepare(
+    "UPDATE orders SET status='confirming', confirming_at=? WHERE order_no=? AND (status='pending' OR (status='confirming' AND confirming_at <= ?))"
+  )
+    .bind(nowIso(), no, new Date(Date.now() - 5 * 60_000).toISOString())
+    .run()
+  if (!claim.meta.changes) {
+    const row0 = await c.env.DB.prepare('SELECT status,code,credited FROM orders WHERE order_no=?').bind(no).first<any>()
+    if (!row0) return err(c, 404, '订单不存在')
+    if (row0.status === 'paid') return c.json({ ok: true, already: true, code: row0.code, credited: !!row0.credited })
+    return err(c, 409, '订单状态异常，无法确认')
+  }
   const row = await c.env.DB.prepare('SELECT * FROM orders WHERE order_no=?').bind(no).first<any>()
   if (!row) return err(c, 404, '订单不存在')
-  if (row.status === 'paid') return c.json({ ok: true, already: true, code: row.code, credited: !!row.credited })
 
   // 1) 优先直接充入邮箱对应的账号（用户无需手动兑换）
-  let credited = 0
-  let code: string | null = null
+  //    充值 + 落 paid 用 D1 batch 原子提交：中途崩溃不会出现「钱加了订单还 pending」
   if (row.email) {
     const user = await c.env.DB.prepare('SELECT id FROM users WHERE email=?').bind(row.email).first<{ id: number }>()
     if (user) {
-      await addBalance(c.env, user.id, row.tokens)
-      credited = 1
+      await c.env.DB.batch([
+        c.env.DB.prepare(
+          `INSERT INTO balances(user_id,tokens,updated_at) VALUES(?,?,?)
+           ON CONFLICT(user_id) DO UPDATE SET tokens = tokens + excluded.tokens, updated_at = excluded.updated_at`
+        ).bind(user.id, row.tokens, nowIso()),
+        c.env.DB.prepare("UPDATE orders SET status='paid', paid_at=?, code=NULL, credited=1, note=? WHERE order_no=? AND status='confirming'")
+          .bind(nowIso(), String(body.note ?? '').slice(0, 200), no),
+      ])
+      return c.json({ ok: true, order_no: no, credited: true, code: null })
     }
   }
-  // 2) 没有账号（或未填邮箱）→ 签发兑换码，用户自己在软件里兑换
-  if (!credited) {
-    code = newTopupCode()
-    await c.env.DB.prepare(
+  // 2) 没有账号（或未填邮箱）→ 签发兑换码，用户自己在软件里兑换（batch 原子：发码+落 paid）
+  const code = newTopupCode()
+  await c.env.DB.batch([
+    c.env.DB.prepare(
       'INSERT INTO topup_codes(code,tier,price_cny,tokens,note,created_at) VALUES(?,?,?,?,?,?)'
-    )
-      .bind(code, row.tier, row.price_cny, row.tokens, `订单 ${no}`, nowIso())
-      .run()
-  }
-  await c.env.DB.prepare('UPDATE orders SET status=?, paid_at=?, code=?, credited=?, note=? WHERE order_no=?')
-    .bind('paid', nowIso(), code, credited, String(body.note ?? '').slice(0, 200), no)
-    .run()
-  return c.json({ ok: true, order_no: no, credited: !!credited, code })
+    ).bind(code, row.tier, row.price_cny, row.tokens, `订单 ${no}`, nowIso()),
+    c.env.DB.prepare("UPDATE orders SET status='paid', paid_at=?, code=?, credited=0, note=? WHERE order_no=? AND status='confirming'")
+      .bind(nowIso(), code, String(body.note ?? '').slice(0, 200), no),
+  ])
+  return c.json({ ok: true, order_no: no, credited: false, code })
 })
 
 app.notFound((c) => c.json({ detail: '接口不存在' }, 404))

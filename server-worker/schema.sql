@@ -59,12 +59,20 @@ CREATE TABLE IF NOT EXISTS orders (
   price_cny REAL NOT NULL,
   tokens INTEGER NOT NULL,
   email TEXT,
-  status TEXT NOT NULL DEFAULT 'pending',   -- pending | paid
+  status TEXT NOT NULL DEFAULT 'pending',   -- pending | confirming | paid
   code TEXT,                                 -- 确认后签发的兑换码
   credited INTEGER NOT NULL DEFAULT 0,       -- 1=已直接充入账号邮箱对应的账户
   created_at TEXT NOT NULL,
   paid_at TEXT,
+  confirming_at TEXT,                        -- 抢占时间（中断恢复用）
   note TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status, created_at);
+
+-- 登录/注册/兑换码尝试限流（滑动窗口，bucket 到期自动归零复用）
+CREATE TABLE IF NOT EXISTS rate_hits (
+  bucket TEXT PRIMARY KEY,
+  hits INTEGER NOT NULL,
+  reset_at TEXT NOT NULL
+);
