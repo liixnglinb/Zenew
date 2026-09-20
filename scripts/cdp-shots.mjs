@@ -1,4 +1,4 @@
-// UI 验收截图：遍历五个页面 + 复习两卡，存 D:/Zenew/ui-*.png
+// UI 验收截图：遍历五个页面 + 复习两卡，存 C:/Users/李星历/Desktop/课程学习软件/Zenew/ui-*.png
 import fs from 'fs';
 
 const list = await (await fetch('http://127.0.0.1:9222/json/list')).json();
@@ -20,7 +20,7 @@ const evalJs = async (expr) => {
 };
 const shot = async (name) => {
   const r = await send('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(`D:/Zenew/${name}.png`, Buffer.from(r.result.data, 'base64'));
+  fs.writeFileSync(`C:/Users/李星历/Desktop/课程学习软件/Zenew/${name}.png`, Buffer.from(r.result.data, 'base64'));
   console.log('saved', name);
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

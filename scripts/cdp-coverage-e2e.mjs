@@ -68,8 +68,8 @@ console.log('   提示:', (t.match(/(补齐未覆盖|整课生成)完成：[^\n]
 console.log('   已覆盖标记数:', (t.match(/✓ 已覆盖/g) || []).length);
 
 const fs = await import('fs');
-fs.mkdirSync('D:/Zenew/docs/screenshots', { recursive: true });
+fs.mkdirSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots', { recursive: true });
 const shot = await send('Page.captureScreenshot', { format: 'png' });
-fs.writeFileSync('D:/Zenew/docs/screenshots/coverage-e2e.png', Buffer.from(shot.data, 'base64'));
-console.log('   截图 → D:/Zenew/docs/screenshots/coverage-e2e.png');
+fs.writeFileSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots/coverage-e2e.png', Buffer.from(shot.data, 'base64'));
+console.log('   截图 → C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots/coverage-e2e.png');
 ws.close();

@@ -1,8 +1,8 @@
 // 独立验证 PDF 解析逻辑（与 app/src/pdf.ts 相同算法）：行重组 + 章标题检测
-import * as pdfjsLib from 'file:///D:/Zenew/app/node_modules/pdfjs-dist/legacy/build/pdf.mjs'
+import * as pdfjsLib from 'file:///C:/Users/李星历/Desktop/课程学习软件/Zenew/app/node_modules/pdfjs-dist/legacy/build/pdf.mjs'
 import fs from 'fs'
 
-const data = new Uint8Array(fs.readFileSync('D:/Zenew/docs/test-textbook.pdf'))
+const data = new Uint8Array(fs.readFileSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/test-textbook.pdf'))
 const pdf = await pdfjsLib.getDocument({ data }).promise
 const CHAPTER_RE = /^\s*(第\s*[一二三四五六七八九十百0-9０-９]+\s*[章讲篇部]|Chapter\s+\d+)/i
 

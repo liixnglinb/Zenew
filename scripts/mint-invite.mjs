@@ -2,6 +2,8 @@
 // 生成形如 ZENEW-XXXX-XXXX 的一次性邀请码并写入线上 D1（zenew-apac）
 import { execSync } from 'child_process';
 import { randomBytes } from 'crypto';
+import { fileURLToPath } from 'url';
+import { join } from 'path';
 
 const count = Math.max(1, Math.min(200, parseInt(process.argv[2] || '1', 10) || 1));
 const note = (process.argv[3] || 'manual').replace(/'/g, '');
@@ -23,7 +25,7 @@ const sql = `INSERT INTO invite_codes(code,note,created_at) VALUES ${values};`;
 console.log(`生成 ${count} 个邀请码（备注：${note}），写入线上 D1…\n`);
 execSync(
   `npx wrangler d1 execute zenew-apac --remote --command "${sql}"`,
-  { stdio: 'inherit', cwd: new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1') + 'server-worker' }
+  { stdio: 'inherit', cwd: join(fileURLToPath(new URL('..', import.meta.url)), 'server-worker') }
 );
 
 console.log('\n邀请码清单（请自行保存，界面只显示一次）：');

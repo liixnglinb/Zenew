@@ -2,7 +2,7 @@
 // 用法: node scripts/smoke-orders.mjs <管理口令> <已注册邮箱> <该邮箱密码>
 import fs from 'fs';
 const API = 'https://zenew-api.lxlrwxs.top';
-const ADMIN = process.argv[2] || fs.readFileSync('D:/Zenew/.secrets/admin_token.txt', 'utf8').trim();
+const ADMIN = process.argv[2] || fs.readFileSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/.secrets/admin_token.txt', 'utf8').trim();
 const EMAIL = process.argv[3];
 const PASS = process.argv[4];
 let pass = 0, fail = 0;

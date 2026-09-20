@@ -95,13 +95,13 @@ async function main() {
   }
   await sleep(700)
   log(`互动 ${done} 步，结束页:`, (await c.eval(`document.querySelector('.main-inner')?.innerText.slice(0,180).replace(/\\n/g,' | ')`)))
-  await c.shot('D:/Zenew/e2e-review.png')
-  log('截图: D:/Zenew/e2e-review.png')
+  await c.shot('C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-review.png')
+  log('截图: C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-review.png')
 
   // 统计页
   await c.eval(`location.hash = '#/stats'`); await sleep(1000)
   log('统计页:', (await c.eval(`document.querySelector('.main-inner')?.innerText.slice(0,240).replace(/\\n/g,' | ')`)))
-  await c.shot('D:/Zenew/e2e-stats.png')
+  await c.shot('C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-stats.png')
   process.exit(0)
 }
 

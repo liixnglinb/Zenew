@@ -14,7 +14,7 @@ const ev = async (x) => (await send('Runtime.evaluate', { expression: x, returnB
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const shot = async (name) => {
   const s = await send('Page.captureScreenshot', { format: 'png' });
-  fs.writeFileSync(`D:/Zenew/docs/screenshots/${name}.png`, Buffer.from(s.result.data, 'base64'));
+  fs.writeFileSync(`C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots/${name}.png`, Buffer.from(s.result.data, 'base64'));
   console.log('  截图 →', name);
 };
 

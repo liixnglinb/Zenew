@@ -28,8 +28,8 @@ const clickText = (text, sel = 'button') => evalJs(`(() => {
 })()`);
 const shot = async (name) => {
   const s = await send('Page.captureScreenshot', { format: 'png' });
-  fs.mkdirSync('D:/Zenew/docs/screenshots', { recursive: true });
-  fs.writeFileSync(`D:/Zenew/docs/screenshots/${name}.png`, Buffer.from(s.result.data, 'base64'));
+  fs.mkdirSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots', { recursive: true });
+  fs.writeFileSync(`C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots/${name}.png`, Buffer.from(s.result.data, 'base64'));
 };
 const txt = (n = 90) => evalJs(`document.body.innerText.replace(/\\s+/g,' ').slice(0,${n})`);
 

@@ -44,7 +44,7 @@ CH2 = [
      "索引是提高查询效率的有效手段。B+ 树索引支持范围查询与等值查询；哈希索引仅支持等值查询。索引虽然加快查询，但会降低插入、删除、更新的速度，并占用额外存储空间。"),
 ]
 
-out = Path("D:/Zenew/docs/test-textbook.pdf")
+out = Path("C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/test-textbook.pdf")
 doc = SimpleDocTemplate(str(out), pagesize=A4, title="数据库系统概论（测试教材）")
 story = []
 for ch in (CH1, CH2):

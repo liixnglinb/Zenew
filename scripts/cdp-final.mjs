@@ -55,11 +55,11 @@ for (let step = 0; step < 50; step++) {
 }
 await sleep(700)
 console.log(`[final] 互动 ${steps} 步 → 结束页:`, (await ev(`document.querySelector('.main-inner')?.innerText.slice(0,200).replace(/\\n/g,' | ')`)))
-await shot('D:/Zenew/e2e-done.png')
+await shot('C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-done.png')
 
 await send('Runtime.evaluate', { expression: `location.hash = '#/stats'` })
 await sleep(1100)
 console.log('[final] 统计页:', (await ev(`document.querySelector('.main-inner')?.innerText.slice(0,260).replace(/\\n/g,' | ')`)))
-await shot('D:/Zenew/e2e-stats.png')
-console.log('[final] 截图: D:/Zenew/e2e-done.png, D:/Zenew/e2e-stats.png')
+await shot('C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-stats.png')
+console.log('[final] 截图: C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-done.png, C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-stats.png')
 process.exit(0)

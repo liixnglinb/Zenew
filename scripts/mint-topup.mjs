@@ -1,6 +1,8 @@
 // 充值卡密生成器：node scripts/mint-topup.mjs <档位1-4> [数量] [备注]
 // 档位：1=¥3.9/60万  2=¥9.9/170万  3=¥19.9/370万  4=¥39.9/780万
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { randomBytes } from 'crypto';
 
 export const TIERS = {
@@ -34,7 +36,7 @@ const now = new Date().toISOString();
 const values = codes.map((c) => `('${c}',${tier},${price},${tokens},'${note}','${now}')`).join(',');
 const sql = `INSERT INTO topup_codes(code,tier,price_cny,tokens,note,created_at) VALUES ${values};`;
 
-const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1') + 'server-worker';
+const root = join(fileURLToPath(new URL('..', import.meta.url)), 'server-worker');
 console.log(`生成 ${count} 个 ${tier} 档卡密（¥${price} / ${(tokens / 10000).toFixed(0)} 万 tokens，备注：${note}）\n`);
 execSync(`npx wrangler d1 execute zenew-apac --remote --command "${sql}"`, { stdio: 'inherit', cwd: root });
 

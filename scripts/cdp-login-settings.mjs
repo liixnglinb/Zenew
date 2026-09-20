@@ -29,7 +29,7 @@ console.log('版本标签:', await evalJs("(document.querySelector('.tag-mono')|
 console.log('更新区:', await evalJs("(()=>{const rows=[...document.querySelectorAll('.settings-row')];const r=rows.find(x=>x.textContent.includes('检查更新'));return r?r.textContent.replace(/\s+/g,' ').trim():'(未找到)'})()"));
 console.log('横幅:', await evalJs("(()=>{const b=document.querySelector('.update-banner');return b?b.textContent.replace(/\s+/g,' ').trim():'(无)'})()"));
 const shot = await send('Page.captureScreenshot', { format: 'png' });
-fs.mkdirSync('D:/Zenew/docs/screenshots', { recursive: true });
-fs.writeFileSync('D:/Zenew/docs/screenshots/upd-before.png', Buffer.from(shot.result.data, 'base64'));
+fs.mkdirSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots', { recursive: true });
+fs.writeFileSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots/upd-before.png', Buffer.from(shot.result.data, 'base64'));
 console.log('已截图 docs/screenshots/upd-before.png');
 process.exit(0);

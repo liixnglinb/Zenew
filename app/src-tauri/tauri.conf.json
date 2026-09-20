@@ -26,7 +26,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
@@ -41,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxRDhBNDZBREIwQUU2OApSV1JvcnJDdFJvb2RCK1FseFcxRDFBaTVpaWQ2SnZ3RWZKS3ZrTjFnRGZ2K0x0aFVZNUZVYTRCNAo=",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1NTBGNDVFMDU2RjFFMTQKUldRVUhtOEZYdlJROWR5SUVvVFZQOEs4Ui9zdlh2aTNzZEtRS2NVRlBQQm9leVYweDA3UHN4ckIK",
       "endpoints": [
         "https://github.com/liixnglinb/Zenew/releases/latest/download/latest.json"
       ]

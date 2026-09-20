@@ -1,7 +1,7 @@
 // 真机导入 PDF 验收：点导入框 → Tauri 文件对话框没法远程驱动 → 直接把 File 对象注入流水线
 // 做法：读取 PDF 为 base64，在页面里构造 File，调用 startImport 等价逻辑（直接 import pdf 模块跑 runImportPipeline）
 import fs from 'fs'
-const PDF = 'D:/Zenew/docs/test-textbook.pdf'
+const PDF = 'C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/test-textbook.pdf'
 const b64 = fs.readFileSync(PDF).toString('base64')
 
 const list = await (await fetch('http://127.0.0.1:9222/json/list')).json()
@@ -54,7 +54,7 @@ console.log('4) 课程列表应有《test-textbook》')
 const has = await ev(`document.body.innerText.includes('test-textbook')`)
 console.log('   课程出现:', has)
 const shot = await send('Page.captureScreenshot', { format: 'png' })
-fs.mkdirSync('D:/Zenew/docs/screenshots', { recursive: true })
-fs.writeFileSync('D:/Zenew/docs/screenshots/pdf-import.png', Buffer.from(shot.data, 'base64'))
+fs.mkdirSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots', { recursive: true })
+fs.writeFileSync('C:/Users/李星历/Desktop/课程学习软件/Zenew/docs/screenshots/pdf-import.png', Buffer.from(shot.data, 'base64'))
 console.log('截图 → pdf-import.png')
 ws.close()

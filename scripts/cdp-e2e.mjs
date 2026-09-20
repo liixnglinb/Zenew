@@ -108,8 +108,8 @@ async function main() {
   // 7. 统计页 + 截图
   await c.eval(clickBtn(`/统计/`)); await sleep(1200)
   log('统计页:', (await c.eval(bodyText())).slice(0, 260))
-  await c.shot('D:/Zenew/e2e-final.png')
-  log('截图: D:/Zenew/e2e-final.png')
+  await c.shot('C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-final.png')
+  log('截图: C:/Users/李星历/Desktop/课程学习软件/Zenew/e2e-final.png')
 
   // 8. 复习日志落库核验（直接查 WebView 里的数据）
   const counts = await c.eval(`(async () => {
