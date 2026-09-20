@@ -158,3 +158,91 @@ export async function loadQueue(nowIsoStr: string, newLimit = 10): Promise<Queue
   }
   return out
 }
+
+// ---- 学习会话断点续学 ----
+// 进度本身已逐张写入 card_state/review_log（重启不丢）；
+// 这里持久化「队列快照 + 位置」，让重开软件后能从上次中断的那张继续。
+
+export interface SavedSession {
+  card_ids: number[]
+  idx: number
+  saved_at: string
+}
+
+const SESSION_KEY = 'session_queue'
+
+export async function saveSession(cardIds: number[], idx: number): Promise<void> {
+  if (!cardIds.length) return
+  const db = await getDb()
+  await db.execute(
+    "INSERT INTO _zenew_meta(key, value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+    [SESSION_KEY, JSON.stringify({ card_ids: cardIds, idx, saved_at: nowIso() })]
+  )
+}
+
+export async function clearSession(): Promise<void> {
+  const db = await getDb()
+  await db.execute('DELETE FROM _zenew_meta WHERE key=?', [SESSION_KEY])
+}
+
+/** 读取上次中断的会话；卡已消失（被删课程等）则视为过期返回 null */
+export async function loadSession(): Promise<SavedSession | null> {
+  const db = await getDb()
+  const rows = await db.select<{ value: string }[]>(
+    'SELECT value FROM _zenew_meta WHERE key=?',
+    [SESSION_KEY]
+  )
+  if (!rows.length) return null
+  try {
+    const parsed = JSON.parse(rows[0].value) as SavedSession
+    if (!parsed.card_ids?.length || parsed.idx >= parsed.card_ids.length) return null
+    const ph = parsed.card_ids.map(() => '?').join(',')
+    const exist = await db.select<{ id: number }[]>(
+      `SELECT id FROM card WHERE id IN (${ph})`,
+      parsed.card_ids
+    )
+    if (exist.length !== parsed.card_ids.length) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+/** 按快照的卡 id 顺序重建队列（保持原混排顺序） */
+export async function loadQueueByIds(cardIds: number[]): Promise<QueueItem[]> {
+  const db = await getDb()
+  const ph = cardIds.map(() => '?').join(',')
+  const rows = await db.select<QueueItem[]>(
+    `SELECT c.id, c.topic_id, c.type, c.front, c.back, c.explanation, c.choices_json, c.answer_index, c.suspended,
+            t.title AS topic_title, co.name AS course_name,
+            cs.card_id AS st_card_id, cs.due, cs.stability, cs.difficulty, cs.elapsed_days, cs.scheduled_days, cs.reps, cs.lapses, cs.state, cs.last_review
+     FROM card c
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     LEFT JOIN card_state cs ON cs.card_id = c.id
+     WHERE c.id IN (${ph})`,
+    cardIds
+  )
+  const byId = new Map<number, QueueItem>()
+  for (const raw of rows) {
+    const r = raw as unknown as Record<string, unknown>
+    const { st_card_id, ...rest } = r
+    void st_card_id
+    byId.set(r.id as number, {
+      ...(rest as unknown as QueueItem),
+      st: r.state === null || r.state === undefined ? null : {
+        card_id: r.id as number,
+        due: (r.due as string) || nowIso(),
+        stability: (r.stability as number) || 0,
+        difficulty: (r.difficulty as number) || 0,
+        elapsed_days: (r.elapsed_days as number) || 0,
+        scheduled_days: (r.scheduled_days as number) || 0,
+        reps: (r.reps as number) || 0,
+        lapses: (r.lapses as number) || 0,
+        state: r.state as number,
+        last_review: (r.last_review as string) || null,
+      },
+    })
+  }
+  return cardIds.map((id) => byId.get(id)).filter((x): x is QueueItem => !!x)
+}

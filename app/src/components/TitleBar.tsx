@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { isTauri } from '../db'
 import { Minus, Square, Copy, X } from 'lucide-react'
+import UpdatePill from './UpdatePill'
 
 /** 自绘标题栏：无边框窗口的窗口控制 + 顶部拖拽区；进入全屏后自动隐藏 */
 export default function TitleBar() {
@@ -43,7 +44,7 @@ export default function TitleBar() {
         知新
         <small>ZENEW</small>
       </div>
-      <span className="titlebar-tag">v0.7.0</span>
+      <UpdatePill />
       <div className="titlebar-spacer" />
       <button className={btn} title="最小化" onClick={() => getCurrentWindow().minimize().catch(() => {})}>
         <Minus size={14} strokeWidth={1.8} />

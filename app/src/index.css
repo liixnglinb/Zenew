@@ -84,6 +84,26 @@ input, select { font-family: inherit; }
   font-family: var(--mono); font-size: 9px; color: var(--ink-3);
   border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; letter-spacing: .5px;
 }
+/* 标题栏更新胶囊（替代旧版本号位）：四态 idle/available/downloading/restarting */
+.update-pill {
+  font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; letter-spacing: .5px;
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  background: transparent; cursor: default;
+  transition: color .15s, border-color .15s, background .15s, transform .15s var(--ease);
+}
+button.update-pill { cursor: pointer; }
+button.update-pill:hover { color: var(--ink); border-color: var(--ink); transform: translateY(-1px); }
+.update-pill.is-avail { color: var(--gold-deep); border-color: var(--gold-line); background: var(--gold-wash); font-weight: 600; }
+.update-pill.is-avail:hover { border-color: var(--gold); box-shadow: 0 2px 8px rgba(164,136,48,.18); }
+.update-pill.is-dl { color: var(--ink-2); cursor: default; }
+.update-pill.is-dl .mini-bar {
+  width: 34px; height: 3px; border-radius: 999px; background: var(--paper-sunken);
+  overflow: hidden; display: inline-flex;
+}
+.update-pill.is-dl .mini-bar i { display: block; height: 100%; background: var(--gold); border-radius: 999px; transition: width .4s var(--ease); }
+.update-pill.is-ok { color: var(--green); border-color: var(--green-wash); background: var(--green-wash); }
+.update-pill.is-err { color: var(--red); border-color: var(--red-wash); background: var(--red-wash); }
 .titlebar-spacer { flex: 1; }
 .titlebar-btn {
   width: 46px; height: 44px; flex-shrink: 0;

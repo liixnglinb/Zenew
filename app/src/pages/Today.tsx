@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getDb } from '../db'
+import { getDb, loadSession } from '../db'
 import { Play, Flame, Clock3, Layers } from 'lucide-react'
 
 export default function Today() {
   const nav = useNavigate()
   const [s, setS] = useState<{ due: number; fresh: number; streak: number } | null>(null)
+  const [resume, setResume] = useState<{ idx: number; total: number } | null>(null)
 
   useEffect(() => {
     ;(async () => {
+      try {
+        const saved = await loadSession()
+        if (saved) setResume({ idx: saved.idx, total: saved.card_ids.length })
+      } catch {}
       try {
         const db = await getDb()
         const now = new Date().toISOString()
@@ -66,12 +71,14 @@ export default function Today() {
                 <span className="tag"><Clock3 size={11} /> 约 {minutes} 分钟</span>
               </div>
             </div>
-            <div style={{ marginTop: 24 }}>
+            <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
               <button className="btn btn-primary btn-lg" onClick={() => nav('/review')}>
-                <Play size={15} /> 开始学习
+                <Play size={15} /> {resume ? '继续学习' : '开始学习'}
               </button>
-              <span className="muted" style={{ marginLeft: 14, fontSize: 12, fontFamily: 'var(--mono)' }}>
-                <kbd>1</kbd>-<kbd>4</kbd> 打分 · <kbd>空格</kbd> 翻面
+              <span className="muted" style={{ fontSize: 12, fontFamily: 'var(--mono)' }}>
+                {resume
+                  ? `上次学到第 ${resume.idx + 1} / ${resume.total} 张，接着上次继续`
+                  : <span><kbd>1</kbd>-<kbd>4</kbd> 打分 · <kbd>空格</kbd> 翻面</span>}
               </span>
             </div>
           </div>

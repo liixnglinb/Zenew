@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Check, X } from 'lucide-react'
-import { getDb, loadQueue, nowIso, isTauri, type QueueItem } from '../db'
+import { getDb, loadQueue, loadSession, loadQueueByIds, saveSession, clearSession, nowIso, isTauri, type QueueItem } from '../db'
 import { schedule, R } from '../fsrs'
 
 type Phase = 'front' | 'answered'
@@ -44,9 +44,27 @@ export default function ReviewSession() {
 
   useEffect(() => {
     ;(async () => {
+      try {
+        // 断点续学：有上次中断的会话就按快照恢复（否则正常组队）
+        const saved = await loadSession()
+        if (saved) {
+          const q = await loadQueueByIds(saved.card_ids)
+          if (q.length && saved.idx < q.length) {
+            setQueue(q)
+            setIdx(saved.idx)
+            setLoading(false)
+            shownAt.current = Date.now()
+            return
+          }
+        }
+        await clearSession()
+      } catch (e) {
+        console.error('恢复会话失败', e)
+      }
       const newLimit = Number(localStorage.getItem('zenew_new_limit') || '10') || 10
       const q = await loadQueue(nowIso(), newLimit)
       setQueue(q)
+      await saveSession(q.map((x) => x.id), 0).catch(() => {})
       setLoading(false)
       shownAt.current = Date.now()
     })()
@@ -121,6 +139,12 @@ export default function ReviewSession() {
             <button className="btn" onClick={() => { exitFs(); nav('/courses') }}>去生成卡片</button>
           )}
         </div>
+        {done && (
+          <div className="today-hint fade-up" style={{ marginTop: 16 }}>
+            <span className="dot" />
+            学习记录已保存，下次打开软件接着安排
+          </div>
+        )}
       </div>
     )
   }
@@ -150,12 +174,15 @@ export default function ReviewSession() {
 
   const advance = () => {
     if (idx + 1 >= queue.length) {
+      void clearSession().catch(() => {})
       setDone({ total: queue.length, again: againCount.current, ms: Date.now() - sessionStart.current })
     } else {
-      setIdx(idx + 1)
+      const nextIdx = idx + 1
+      setIdx(nextIdx)
       setPhase('front')
       setPicked(null)
       shownAt.current = Date.now()
+      void saveSession(queue.map((x) => x.id), nextIdx).catch(() => {})
     }
   }
 
@@ -163,14 +190,19 @@ export default function ReviewSession() {
     if (phase === 'answered') return
     setPicked(i)
     setPhase('answered')
-    void commit(i === (item.answer_index ?? 0) ? R.Good : R.Again)
-    if (i !== (item.answer_index ?? 0)) againCount.current++
+    const g = i === (item.answer_index ?? 0) ? R.Good : R.Again
+    void (async () => {
+      await commit(g)
+      if (i !== (item.answer_index ?? 0)) againCount.current++
+    })()
   }
 
   const selfGrade = (g: 1 | 2 | 3 | 4) => {
-    void commit(g)
-    if (g === R.Again) againCount.current++
-    advance()
+    void (async () => {
+      await commit(g)
+      if (g === R.Again) againCount.current++
+      advance()
+    })()
   }
 
   return (
