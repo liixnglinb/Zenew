@@ -16,8 +16,8 @@ function Shell() {
   const nav = useNavigate()
   return (
     <div className="shell">
-      <div className="ambient" style={{ width: 420, height: 420, top: -140, right: -120 }} />
-      <div className="ambient" style={{ width: 380, height: 380, bottom: -160, right: 240, animationDelay: '3s' }} />
+      <div className="ambient" style={{ width: 420, height: 420, top: -140, right: -120, background: 'radial-gradient(circle, var(--gold-glow) 0%, rgba(255,224,138,0) 70%)' }} />
+      <div className="ambient" style={{ width: 380, height: 380, bottom: -160, right: 240, animationDelay: '3s', background: 'radial-gradient(circle, var(--gold-glow) 0%, rgba(255,224,138,0) 70%)' }} />
       <aside className="sidebar">
         <div className="brand">
           知新
@@ -89,6 +89,10 @@ export default function App() {
       }
       setReady(true)
     })()
+    // 会话中途 token 失效（api 层广播）→ 立即回登录页，避免僵尸态
+    const onUnauthorized = () => setMe(null)
+    window.addEventListener('zenew:unauthorized', onUnauthorized)
+    return () => window.removeEventListener('zenew:unauthorized', onUnauthorized)
   }, [])
 
   if (!ready) return null

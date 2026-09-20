@@ -5,7 +5,19 @@ export function getServer(): string {
   return localStorage.getItem('zenew_server') || DEFAULT_SERVER
 }
 export function setServer(url: string) {
-  localStorage.setItem('zenew_server', url.replace(/\/+$/, ''))
+  localStorage.setItem('zenew_server', sanitizeServer(url))
+}
+/** 规范化服务地址：trim、补协议、去尾斜杠；非法返回空串 */
+function sanitizeServer(url: string): string {
+  let u = url.trim().replace(/\/+$/, '')
+  if (!u) return ''
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+  try {
+    const parsed = new URL(u)
+    return parsed.origin + (parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/+$/, ''))
+  } catch {
+    return ''
+  }
 }
 export function getToken(): string | null {
   return localStorage.getItem('zenew_token')
@@ -23,17 +35,47 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(path: string, opts: { method?: string; body?: unknown; auth?: boolean } = {}) {
+export async function api(path: string, opts: { method?: string; body?: unknown; auth?: boolean; timeoutMs?: number } = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (opts.auth !== false && getToken()) headers['Authorization'] = `Bearer ${getToken()}`
-  const resp = await fetch(`${getServer()}${path}`, {
-    method: opts.method || 'GET',
-    headers,
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-  })
+  // 超时：默认 20s；生成类请求由调用方放宽（LLM 响应 5-40s）
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 20000)
+  let resp: Response
+  try {
+    resp = await fetch(`${getServer()}${path}`, {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      signal: ctrl.signal,
+    })
+  } catch (e) {
+    clearTimeout(timer)
+    if (ctrl.signal.aborted) throw new ApiError(0, '网络超时，请检查连接')
+    throw new ApiError(0, '网络错误，请检查连接')
+  }
+  clearTimeout(timer)
   const data = await resp.json().catch(() => ({}))
-  if (!resp.ok) throw new ApiError(resp.status, data.detail || `请求失败 (${resp.status})`)
+  if (!resp.ok) {
+    // 401：token 失效 → 清凭证并广播，App 收到后回登录页（统一处理，避免各页僵尸态）
+    if (resp.status === 401 && opts.auth !== false) {
+      setToken(null)
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('zenew:unauthorized'))
+    }
+    throw new ApiError(resp.status, detailText(data.detail) || `请求失败 (${resp.status})`)
+  }
   return data
+}
+
+/** FastAPI 422 的 detail 是数组/对象 → 归一为人话 */
+function detailText(d: unknown): string {
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) return d.map((x) => (typeof x === 'object' && x !== null ? String((x as any).msg ?? '') : String(x))).filter(Boolean).join('；')
+  if (typeof d === 'object' && d !== null) {
+    const m = (d as any).msg
+    return m ? String(m) : ''
+  }
+  return ''
 }
 
 export interface Me { email: string; used_tokens: number; quota_tokens: number; balance_tokens?: number }
@@ -61,7 +103,7 @@ export interface GenCard {
 }
 
 export const genOutline = (title: string, num_chapters = 5) =>
-  api('/gen/outline', { method: 'POST', body: { title, num_chapters } })
+  api('/gen/outline', { method: 'POST', body: { title, num_chapters }, timeoutMs: 120000 })
 
 export const genCards = (
   topic_title: string,
@@ -69,7 +111,7 @@ export const genCards = (
   n = 5,
   types: string[] = ['basic', 'why', 'choice'],
   extra: { course?: string; chapter?: string; avoid?: string[] } = {}
-) => api('/gen/cards', { method: 'POST', body: { topic_title, context, n, types, ...extra } })
+) => api('/gen/cards', { method: 'POST', body: { topic_title, context, n, types, ...extra }, timeoutMs: 120000 })
 
 /** 收款：网页下单（无需登录） */
 export const createOrder = (tier: number, email?: string): Promise<{ order_no: string; tier: number; price_cny: number; tokens: number; status: string }> =>

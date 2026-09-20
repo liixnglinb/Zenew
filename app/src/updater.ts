@@ -7,15 +7,10 @@ export interface UpdateInfo {
   notes: string | null
 }
 
-/** 检查更新；非 Tauri 环境（浏览器开发）返回 null */
+/** 检查更新。返回 Update=有新版本 / null=已是最新；网络等异常会抛出（调用方区分「检查失败」与「已是最新」） */
 export async function checkUpdate(): Promise<Update | null> {
   if (!isTauri()) return null
-  try {
-    return await check()
-  } catch (e) {
-    console.error('检查更新失败', e)
-    return null
-  }
+  return await check()
 }
 
 /** 下载并安装更新（免安装静默替换），然后重启应用 */

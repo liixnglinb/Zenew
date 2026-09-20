@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getDb } from '../db'
+import { getDb, localDayKey } from '../db'
 import { fetchMe, type Me } from '../api'
 
 interface Stats {
@@ -25,15 +25,22 @@ export default function Stats() {
       const mastered = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=21')
       const reviewing = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability<21')
       const learning = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card_state WHERE state IN (1,3)')
-      const today = await db.select<{ n: number }[]>("SELECT COUNT(*) AS n FROM review_log WHERE substr(reviewed_at,1,10)=substr(?,1,10)", [new Date().toISOString()])
-      const weekRows = await db.select<{ d: string; n: number }[]>(
-        "SELECT substr(reviewed_at,1,10) AS d, COUNT(*) AS n FROM review_log WHERE reviewed_at >= ? GROUP BY d ORDER BY d",
-        [new Date(Date.now() - 6 * 86400000).toISOString()]
+      const logs = await db.select<{ reviewed_at: string; rating: number }[]>(
+        'SELECT reviewed_at, rating FROM review_log WHERE reviewed_at >= ?',
+        [new Date(Date.now() - 7 * 86400000).toISOString()]
       )
+      // 本地时区分桶（UTC 存库会在东八区早上 8 点前错位到昨天）
+      const byDay = new Map<string, number>()
+      for (const l of logs) {
+        const k = localDayKey(l.reviewed_at)
+        byDay.set(k, (byDay.get(k) || 0) + 1)
+      }
+      const todayKey = localDayKey()
       const week: { day: string; n: number }[] = []
       for (let i = 6; i >= 0; i--) {
-        const key = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10)
-        week.push({ day: key.slice(5), n: weekRows.find((r) => r.d === key)?.n || 0 })
+        const dt = new Date(Date.now() - i * 86400000)
+        const key = localDayKey(dt)
+        week.push({ day: key.slice(5), n: byDay.get(key) || 0 })
       }
       setS({
         courses: courses[0]?.n || 0,
@@ -41,7 +48,7 @@ export default function Stats() {
         cards: cards[0]?.n || 0,
         mastered: mastered[0]?.n || 0,
         reviewing: (reviewing[0]?.n || 0) + (learning[0]?.n || 0),
-        todayReviews: today[0]?.n || 0,
+        todayReviews: byDay.get(todayKey) || 0,
         week,
       })
       try {
@@ -52,9 +59,26 @@ export default function Stats() {
     })().catch(console.error)
   }, [])
 
-  if (!s) return <div className="muted">···</div>
+  if (!s) {
+    return (
+      <div className="page-in">
+        <div className="kicker">STATS / RETENTION</div>
+        <div className="page-title">统计</div>
+        <div className="metric-row" style={{ marginTop: 24 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="metric">
+              <div className="skeleton sk-line" style={{ width: 54, height: 26 }} />
+              <div className="skeleton sk-line" style={{ width: 36, height: 10, marginTop: 8 }} />
+            </div>
+          ))}
+        </div>
+        <div className="card"><div className="skeleton sk-card" style={{ height: 160 }} /></div>
+      </div>
+    )
+  }
   const maxWeek = Math.max(1, ...s.week.map((w) => w.n))
-  const pct = me ? Math.min(100, (me.used_tokens / me.quota_tokens) * 100) : 0
+  const quota = me?.quota_tokens || 0
+  const pct = quota > 0 ? Math.min(100, ((me?.used_tokens || 0) / quota) * 100) : 0
 
   return (
     <div className="page-in">
@@ -102,7 +126,7 @@ export default function Stats() {
               <span className="tag tag-mono tag-gold">{pct.toFixed(1)}%</span>
             </div>
             <div className="bar" style={{ height: 5 }}>
-              <span className="seg-gold" style={{ width: `${Math.max(2, pct)}%` }} />
+              {pct > 0 && <span className="seg-gold" style={{ width: `${pct}%` }} />}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
               <span className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>充值余额</span>

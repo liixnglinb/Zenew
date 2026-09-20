@@ -10,19 +10,20 @@
   /* 墨色：近黑 */
   --ink: #1B1B1B;
   --ink-2: #666666;
-  --ink-3: #9A9A9A;
+  --ink-3: #767676; /* 4.5:1 on white（原 #9A9A9A 仅 2.8:1，不达 AA） */
   /* 线 */
   --line: #E9E9E7;
   --line-strong: #D9D9D6;
   /* 金黄强调（唯一饱和色） */
   --gold: #A48830;
-  --gold-deep: #8A7226;
+  --gold-deep: #7A6420; /* 文本用金色（≥4.5:1 on 白/wash） */
   --gold-wash: #FFF9E8;
   --gold-line: #EAD9A8;
-  /* 状态（沿用 Voyra 语义胶囊） */
-  --green: #3B9B71;
+  --gold-glow: rgba(255, 224, 138, .35);
+  /* 状态（沿用 Voyra 语义胶囊，文本色加深至 AA） */
+  --green: #2E7D57;
   --green-wash: #E8F5E9;
-  --red: #C4574E;
+  --red: #B03E34;
   --red-wash: #FBEAE8;
   /* 阴影 */
   --shadow-card: 0 0 0 1px var(--line), 0 1px 2px rgba(27,27,27,.03);
@@ -48,7 +49,7 @@ body {
 button { font-family: inherit; cursor: pointer; color: inherit; }
 input, select { font-family: inherit; }
 ::placeholder { color: var(--ink-3); }
-::selection { background: var(--gold-wash); }
+::selection { background: var(--gold); color: #fff; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 
 /* ---------------- 页面切换动效 ---------------- */
@@ -60,6 +61,10 @@ input, select { font-family: inherit; }
 .page-in > *:nth-child(4) { animation-delay: .14s; }
 .page-in > *:nth-child(5) { animation-delay: .18s; }
 .page-in > *:nth-child(6) { animation-delay: .22s; }
+.page-in > *:nth-child(7) { animation-delay: .26s; }
+.page-in > *:nth-child(8) { animation-delay: .3s; }
+.page-in > *:nth-child(9) { animation-delay: .34s; }
+.page-in > *:nth-child(n+10) { animation-delay: .38s; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .fade-up { animation: fadeUp .3s var(--ease) both; }
 
@@ -198,6 +203,19 @@ button.update-pill:hover { color: var(--ink); border-color: var(--ink); transfor
   transition: transform .18s var(--ease), box-shadow .18s var(--ease);
 }
 .row:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(27,27,27,.07); }
+/* 行内可点击主体（键盘可达） */
+.row-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px;
+  background: none; border: none; padding: 0; text-align: left; cursor: pointer;
+}
+.row-del {
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 999px; background: transparent; color: var(--ink-3);
+  transition: color .15s, background .15s;
+}
+.row-del:hover:not(:disabled) { color: var(--red); background: var(--red-wash); }
+.row-del:disabled { opacity: .35; cursor: not-allowed; }
 .row-title { font-weight: 600; font-size: 14.5px; }
 .row-meta { color: var(--ink-3); font-size: 12px; font-family: var(--mono); }
 
@@ -418,12 +436,13 @@ kbd {
 
 /* ---------------- 设置 ---------------- */
 .settings-row {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 12px 20px; border-radius: 999px;
   background: var(--paper); box-shadow: var(--shadow-card);
 }
 .settings-row + .settings-row { margin-top: 8px; }
-.row-meta { color: var(--ink-3); font-size: 11px; }
+/* 设置页行内元信息略小（作用域限定，避免覆盖全局 .row-meta 的 12px mono 定义） */
+.settings-row .row-meta { font-size: 11px; }
 
 /* 更新横幅 */
 .update-banner {
@@ -436,5 +455,28 @@ kbd {
 .update-banner span { font-size: 11.5px; color: var(--ink-2); }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important; /* 否则 infinite 动画会以极短周期无限重跑 */
+    transition-duration: .01ms !important;
+  }
+  .ambient { display: none; } /* 纯装饰光斑：reduce 用户直接不渲染 */
 }
+
+/* 复习页「下一张」按钮内的 kbd 金色变体（原为行内样式孤例） */
+.btn-primary kbd.kbd-in-gold {
+  background: var(--gold-wash);
+  border-color: var(--gold-line);
+  color: var(--gold-deep);
+}
+
+/* 骨架屏（加载态替代裸「···」） */
+.skeleton {
+  background: linear-gradient(90deg, var(--paper-sunken) 25%, #ECECE9 37%, var(--paper-sunken) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 999px;
+}
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+.sk-line { height: 12px; }
+.sk-card { height: 132px; border-radius: 16px; }

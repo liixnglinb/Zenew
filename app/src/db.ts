@@ -23,7 +23,18 @@ CREATE TABLE IF NOT EXISTS card_state(card_id INTEGER PRIMARY KEY, due TEXT NOT 
 CREATE TABLE IF NOT EXISTS review_log(id INTEGER PRIMARY KEY AUTOINCREMENT, card_id INTEGER NOT NULL, rating INTEGER NOT NULL, reviewed_at TEXT NOT NULL, duration_ms INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS exam(id INTEGER PRIMARY KEY AUTOINCREMENT, course_id INTEGER NOT NULL, title TEXT NOT NULL, exam_date TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS _zenew_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_card_state_due ON card_state(due);
+CREATE INDEX IF NOT EXISTS idx_review_log_reviewed_at ON review_log(reviewed_at);
 `
+
+/** 本地日期 key（东八区等按本机时区，避免 UTC 8 小时错位） */
+export function localDayKey(d: Date | string = new Date()): string {
+  const dt = typeof d === 'string' ? new Date(d) : d
+  const y = dt.getFullYear()
+  const m = String(dt.getMonth() + 1).padStart(2, '0')
+  const day = String(dt.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 let schemaInit: Promise<void> | null = null
 
@@ -119,17 +130,25 @@ export async function loadQueue(nowIsoStr: string, newLimit = 10): Promise<Queue
      JOIN course co ON co.id = t.course_id
      LEFT JOIN card_state cs ON cs.card_id = c.id
      WHERE c.suspended = 0 AND cs.card_id IS NULL
-     ORDER BY c.created_at DESC LIMIT ?`,
+     ORDER BY c.created_at ASC LIMIT ?`,
     [newLimit]
   )
   const map = (rows: unknown[]): QueueItem[] =>
     rows.map((row) => {
       const r = row as Record<string, unknown>
-      const { st_card_id, st_due, ...rest } = r as never as Record<string, unknown>
-      void st_card_id
-      void st_due
+      void r
       return {
-        ...(rest as unknown as QueueItem),
+        id: r.id as number,
+        topic_id: r.topic_id as number,
+        type: r.type as string,
+        front: r.front as string,
+        back: r.back as string,
+        explanation: r.explanation as string,
+        choices_json: (r.choices_json as string | null) ?? null,
+        answer_index: (r.answer_index as number | null) ?? null,
+        suspended: (r.suspended as number) || 0,
+        topic_title: r.topic_title as string,
+        course_name: r.course_name as string,
         st: r.state === null || r.state === undefined ? null : {
           card_id: r.id as number,
           due: (r.due as string) || nowIsoStr,
@@ -167,16 +186,19 @@ export interface SavedSession {
   card_ids: number[]
   idx: number
   saved_at: string
+  done_count?: number
+  again_count?: number
 }
 
 const SESSION_KEY = 'session_queue'
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000 // 超过 24h 的旧快照作废（队列情况已变）
 
-export async function saveSession(cardIds: number[], idx: number): Promise<void> {
+export async function saveSession(cardIds: number[], idx: number, done = 0, again = 0): Promise<void> {
   if (!cardIds.length) return
   const db = await getDb()
   await db.execute(
     "INSERT INTO _zenew_meta(key, value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-    [SESSION_KEY, JSON.stringify({ card_ids: cardIds, idx, saved_at: nowIso() })]
+    [SESSION_KEY, JSON.stringify({ card_ids: cardIds, idx, saved_at: nowIso(), done_count: done, again_count: again })]
   )
 }
 
@@ -185,7 +207,8 @@ export async function clearSession(): Promise<void> {
   await db.execute('DELETE FROM _zenew_meta WHERE key=?', [SESSION_KEY])
 }
 
-/** 读取上次中断的会话；卡已消失（被删课程等）则视为过期返回 null */
+/** 读取上次中断的会话；过期或卡已消失（被删课程等）则返回 null。
+ *  容错：部分卡缺失时按存在的卡过滤并对 idx 重映射，而不是整体作废。 */
 export async function loadSession(): Promise<SavedSession | null> {
   const db = await getDb()
   const rows = await db.select<{ value: string }[]>(
@@ -195,13 +218,32 @@ export async function loadSession(): Promise<SavedSession | null> {
   if (!rows.length) return null
   try {
     const parsed = JSON.parse(rows[0].value) as SavedSession
-    if (!parsed.card_ids?.length || parsed.idx >= parsed.card_ids.length) return null
+    if (!parsed.card_ids?.length) return null
+    // 过期作废：几天前的旧队列不应劫持当前到期情况
+    if (parsed.saved_at && Date.now() - new Date(parsed.saved_at).getTime() > SESSION_MAX_AGE_MS) {
+      await clearSession()
+      return null
+    }
+    if (parsed.idx >= parsed.card_ids.length) return null
     const ph = parsed.card_ids.map(() => '?').join(',')
     const exist = await db.select<{ id: number }[]>(
       `SELECT id FROM card WHERE id IN (${ph})`,
       parsed.card_ids
     )
-    if (exist.length !== parsed.card_ids.length) return null
+    if (!exist.length) return null
+    if (exist.length !== parsed.card_ids.length) {
+      // 部分卡被删：过滤并重映射 idx（idx 之前丢了 k 张则 idx-k）
+      const existSet = new Set(exist.map((r) => r.id))
+      const kept = parsed.card_ids.filter((id) => existSet.has(id))
+      const lostBefore = parsed.card_ids.slice(0, parsed.idx).filter((id) => !existSet.has(id)).length
+      const remapped: SavedSession = {
+        ...parsed,
+        card_ids: kept,
+        idx: Math.max(0, parsed.idx - lostBefore),
+      }
+      await saveSession(kept, remapped.idx)
+      return remapped
+    }
     return parsed
   } catch {
     return null

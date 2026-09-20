@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getDb, loadSession } from '../db'
+import { getDb, loadSession, localDayKey } from '../db'
 import { Play, Flame, Clock3, Layers } from 'lucide-react'
 
 export default function Today() {
@@ -24,10 +24,13 @@ export default function Today() {
         const freshRows = await db.select<unknown[]>('SELECT c.id FROM card c LEFT JOIN card_state cs ON cs.card_id=c.id WHERE c.suspended=0 AND cs.card_id IS NULL LIMIT 25')
         const days = await db.select<{ d: string }[]>("SELECT DISTINCT substr(reviewed_at,1,10) AS d FROM review_log ORDER BY d DESC LIMIT 60")
         let streak = 0
-        const daySet = new Set(days.map((r) => r.d))
+        // UTC 日 → 本地日（东八区 00:00-08:00 学习不再错位到昨天）
+        const daySet = new Set(days.map((r) => localDayKey(r.d + 'T00:00:00Z')))
         const cur = new Date()
+        // 今天没学不立刻清零：从昨天起算（宽限一天，避免早上打开看到 0 天挫败）
+        if (!daySet.has(localDayKey(cur))) cur.setDate(cur.getDate() - 1)
         for (;;) {
-          const key = cur.toISOString().slice(0, 10)
+          const key = localDayKey(cur)
           if (daySet.has(key)) {
             streak++
             cur.setDate(cur.getDate() - 1)
@@ -44,6 +47,19 @@ export default function Today() {
   const total = (s?.due || 0) + (s?.fresh || 0)
   const minutes = Math.max(1, Math.round((total * 25) / 60))
   const has = total > 0
+
+  if (!s) {
+    return (
+      <div className="page-in">
+        <div className="kicker">TODAY / {new Date().toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}</div>
+        <div className="page-title">今日</div>
+        <div className="card" style={{ padding: '30px 32px', marginTop: 22 }}>
+          <div className="skeleton sk-line" style={{ width: 120, height: 44 }} />
+          <div className="skeleton sk-line" style={{ width: 200, marginTop: 16 }} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="page-in">
