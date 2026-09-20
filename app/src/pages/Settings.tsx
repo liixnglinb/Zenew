@@ -4,6 +4,7 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { getServer, setServer, fetchMe, redeemCode, ApiError, type Me } from '../api'
 import { checkUpdate, applyUpdate, type UpdateInfo } from '../updater'
 import { isTauri } from '../db'
+import { startWatch, readWatch, clearWatch, getLastTopupEvent, type TopupWatch, type TopupEvent } from '../topup'
 
 const DEFAULT_SERVER = 'https://zenew-api.lxlrwxs.top'
 const CODE_RE = /^ZC-[A-Z0-9]{4}-[A-Z0-9]{4}$/
@@ -24,6 +25,8 @@ export default function SettingsPage() {
   const [redeeming, setRedeeming] = useState(false)
   const [redeemMsg, setRedeemMsg] = useState('')
   const [redeemOk, setRedeemOk] = useState(false)
+  const [watch, setWatch] = useState<TopupWatch | null>(null)
+  const [topupMsg, setTopupMsg] = useState<{ kind: 'ok' | 'warn'; text: string } | null>(null)
 
   const loadMe = () => {
     fetchMe()
@@ -32,6 +35,25 @@ export default function SettingsPage() {
         setMeErr('')
       })
       .catch((e) => setMeErr(e instanceof ApiError && e.status === 401 ? '登录已过期，请重新登录' : '获取余额失败'))
+  }
+
+  /** 开始充值：带 sid 打开购买页 → 本地挂监听（轮询 + 深链） */
+  const goBuy = async () => {
+    let baseline = me?.balance_tokens || 0
+    try {
+      const fresh = await fetchMe()
+      setMe(fresh)
+      baseline = fresh.balance_tokens || 0
+    } catch {}
+    const url = `https://lxlrwxs.top/zenew/buy/?sid=watch${me?.email ? `&email=${encodeURIComponent(me.email)}` : ''}`
+    const w = startWatch(me?.email || '', baseline)
+    setWatch(w)
+    setTopupMsg(null)
+    try {
+      await openUrl(url)
+    } catch {
+      setTopupMsg({ kind: 'warn', text: '打开浏览器失败，请手动访问 lxlrwxs.top/zenew/buy/' })
+    }
   }
 
   // 启动即静默检查一次 + 读取真实版本号（更新后能反映新二进制）+ 拉取额度
@@ -44,6 +66,29 @@ export default function SettingsPage() {
       })
       .catch(() => {})
     loadMe()
+    setWatch(readWatch())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 充值到账提示：订阅全局事件（监听器常驻在 App，切页也不会漏）
+  useEffect(() => {
+    const show = (e: TopupEvent) => {
+      setWatch(null)
+      if (e.kind === 'paid') {
+        if (e.added && e.added > 0) {
+          const wan = (e.added / 10000).toFixed(0)
+          setTopupMsg({ kind: 'ok', text: `充值到账 +${wan} 万 tokens${e.balance !== undefined ? `（余额 ${(e.balance / 10000).toFixed(0)} 万）` : ''}` })
+        } else {
+          setTopupMsg({ kind: 'warn', text: '订单已支付，但未绑定账号额度：请到购买页领取卡密后在下方兑换' })
+        }
+        loadMe()
+      }
+    }
+    const onEv = (ev: Event) => show((ev as CustomEvent<TopupEvent>).detail)
+    window.addEventListener('zenew:topup', onEv)
+    const pending = getLastTopupEvent()
+    if (pending) show(pending)
+    return () => window.removeEventListener('zenew:topup', onEv)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -115,6 +160,39 @@ export default function SettingsPage() {
       <div className="kicker">SETTINGS</div>
       <div className="page-title">设置</div>
 
+      {topupMsg && (
+        <div className={`update-banner fade-up${topupMsg.kind === 'ok' ? '' : ' is-err'}`} style={{ marginTop: 22 }}>
+          <div>
+            <b>{topupMsg.text}</b>
+            <span>{topupMsg.kind === 'ok' ? '余额已更新，无需手动刷新' : '按提示处理即可'}</span>
+          </div>
+          <button className="btn btn-sm" onClick={() => setTopupMsg(null)}>
+            知道了
+          </button>
+        </div>
+      )}
+
+      {watch && !topupMsg && (
+        <div className="update-banner fade-up" style={{ marginTop: 22, background: 'var(--paper-2)', borderColor: 'var(--line)' }}>
+          <div>
+            <b>等待付款确认…</b>
+            <span>付款后由站长核对；到账后软件会自动提示（也可以点右侧按钮立即检查）</span>
+          </div>
+          <button className="btn btn-sm" onClick={loadMe} title="立即向服务器核对余额">
+            我已支付
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => {
+              clearWatch()
+              setWatch(null)
+            }}
+          >
+            取消
+          </button>
+        </div>
+      )}
+
       {update && !progress && (
         <div className="update-banner fade-up" style={{ marginTop: 22 }}>
           <div>
@@ -157,7 +235,7 @@ export default function SettingsPage() {
           <button className="btn btn-sm" onClick={loadMe} title="刷新余额">
             刷新
           </button>
-          <button className="btn btn-primary btn-sm" onClick={() => openUrl('https://lxlrwxs.top/zenew/buy/').catch(() => setRedeemMsg('打开浏览器失败，请手动访问 lxlrwxs.top/zenew/buy/'))}>
+          <button className="btn btn-primary btn-sm" onClick={goBuy}>
             去购买
           </button>
         </div>

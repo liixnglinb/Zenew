@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Zenew",
-  "version": "0.10.1",
+  "version": "0.11.1",
   "identifier": "com.zenew.app",
   "build": {
     "frontendDist": "../dist",
@@ -47,7 +47,8 @@
         "languages": [
           "SimpChinese"
         ],
-        "displayLanguageSelector": true
+        "displayLanguageSelector": true,
+        "installerHooks": "installer-hooks.nsh"
       }
     }
   },

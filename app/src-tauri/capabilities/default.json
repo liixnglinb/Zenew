@@ -14,12 +14,14 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-internal-toggle-maximize",
     "core:window:allow-close",
+    "core:window:allow-set-focus",
     "sql:allow-load",
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-close",
     "updater:default",
     "process:allow-restart",
-    "opener:default"
+    "opener:default",
+    "deep-link:default"
   ]
 }

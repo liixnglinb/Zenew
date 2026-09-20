@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BookOpen, BarChart3, CalendarDays, Home, LogOut, Settings } from 'lucide-react'
 import { ApiError, fetchMe, getToken, setToken, type Me } from './api'
 import { isTauri, ensureSchema } from './db'
+import { watchTopup, type TopupEvent } from './topup'
 import TitleBar from './components/TitleBar'
 import Login from './pages/Login'
 import Today from './pages/Today'
@@ -13,7 +14,7 @@ import Stats from './pages/Stats'
 import SettingsPage from './pages/Settings'
 import Exams from './pages/Exams'
 
-function Shell() {
+function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: () => void }) {
   const nav = useNavigate()
   return (
     <div className="shell">
@@ -53,6 +54,17 @@ function Shell() {
       </aside>
       <main className="main">
         <div className="main-inner">
+          {banner && (
+            <div className="update-banner fade-up" style={{ marginBottom: 18 }}>
+              <div>
+                <b>{banner}</b>
+                <span>余额已更新，可直接使用</span>
+              </div>
+              <button className="btn btn-sm" onClick={onDismissBanner}>
+                知道了
+              </button>
+            </div>
+          )}
           <Routes>
             <Route path="/" element={<Navigate to="/today" replace />} />
             <Route path="/today" element={<Today />} />
@@ -73,6 +85,7 @@ export default function App() {
   const [me, setMe] = useState<Me | null>(null)
   const [ready, setReady] = useState(false)
   const [offline, setOffline] = useState(false)
+  const [banner, setBanner] = useState('')
 
   useEffect(() => {
     ;(async () => {
@@ -100,13 +113,31 @@ export default function App() {
     return () => window.removeEventListener('zenew:unauthorized', onUnauthorized)
   }, [])
 
+  // 充值到账监听：全局常驻（无论当前在哪个页面，付款确认后都能识别并提示）
+  useEffect(() => {
+    if (!me) return
+    const off = watchTopup((e: TopupEvent) => {
+      if (e.kind === 'paid' && e.added && e.added > 0) {
+        setBanner(`充值到账 +${(e.added / 10000).toFixed(0)} 万 tokens`)
+      } else if (e.kind === 'paid') {
+        setBanner('订单已支付，请到设置页兑换卡密')
+      }
+      if (isTauri()) {
+        import('@tauri-apps/api/window')
+          .then(({ getCurrentWindow }) => getCurrentWindow().setFocus())
+          .catch(() => {})
+      }
+    })
+    return off
+  }, [me])
+
   if (!ready) return null
   if (!me) return <Login onLogin={(m) => setMe({ email: m.email, used_tokens: 0, quota_tokens: 0 })} />
   void offline
   return (
     <HashRouter>
       <TitleBar />
-      <Shell />
+      <Shell banner={banner} onDismissBanner={() => setBanner('')} />
     </HashRouter>
   )
 }

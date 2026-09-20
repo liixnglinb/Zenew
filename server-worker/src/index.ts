@@ -361,6 +361,17 @@ app.get('/me', auth, async (c) => {
   })
 })
 
+// ---------- 我的订单：客户端轮询「是否到账」 ----------
+app.get('/billing/my-orders', auth, async (c) => {
+  const email = String(c.get('email') || '').toLowerCase()
+  const rows = await c.env.DB.prepare(
+    'SELECT order_no,tier,price_cny,tokens,status,credited,code,created_at,paid_at FROM orders WHERE lower(email)=? ORDER BY created_at DESC LIMIT 10'
+  )
+    .bind(email)
+    .all()
+  return c.json({ orders: rows.results ?? [] })
+})
+
 // ---------- 充值：卡密兑换（一次一码，额度充值到余额，不随月份清零） ----------
 app.post('/billing/redeem', auth, async (c) => {
   const userId = c.get('userId')
