@@ -71,7 +71,7 @@ export default function TitleBar() {
       >
         {maximized ? <Copy size={12} strokeWidth={1.8} /> : <Square size={12} strokeWidth={1.8} />}
       </button>
-      <button className={`${btn} titlebar-close`} title="关闭" aria-label="关闭" onClick={(e) => { e.stopPropagation(); getCurrentWindow().close().catch(() => {}) }}>
+      <button className={`${btn} titlebar-close`} title="关闭到托盘（右下角图标可恢复）" aria-label="关闭" onClick={(e) => { e.stopPropagation(); getCurrentWindow().hide().catch(() => {}) }}>
         <X size={14} strokeWidth={1.8} />
       </button>
     </header>
