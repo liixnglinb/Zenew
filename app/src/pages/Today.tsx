@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getDb, loadSession, localDayKey } from '../db'
 import { daysUntil } from './Exams'
-import { Play, Flame, Clock3, Layers, CalendarDays } from 'lucide-react'
+import { Play, Flame, Clock3, Layers, CalendarDays, BookOpen } from 'lucide-react'
 
 export default function Today() {
   const nav = useNavigate()
@@ -105,6 +105,9 @@ export default function Today() {
             <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
               <button className="btn btn-primary btn-lg" onClick={() => nav('/review')}>
                 <Play size={15} /> {resume ? '继续学习' : '开始学习'}
+              </button>
+              <button className="btn" onClick={() => nav('/vocab')}>
+                <BookOpen size={14} /> 词书
               </button>
               <span className="muted" style={{ fontSize: 12, fontFamily: 'var(--mono)' }}>
                 {resume

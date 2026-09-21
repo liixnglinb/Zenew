@@ -305,3 +305,74 @@ export async function loadQueueByIds(cardIds: number[]): Promise<QueueItem[]> {
   }
   return cardIds.map((id) => byId.get(id)).filter((x): x is QueueItem => !!x)
 }
+
+/** 按课程名取队列（词书「专学本书」）：到期卡 + 新卡，混排规则与 loadQueue 一致 */
+export async function loadQueueByCourse(courseName: string, nowIsoStr: string, newLimit = 10): Promise<QueueItem[]> {
+  const db = await getDb()
+  const due = await db.select<QueueItem[]>(
+    `SELECT c.id, c.topic_id, c.type, c.front, c.back, c.explanation, c.choices_json, c.answer_index, c.suspended,
+            t.title AS topic_title, co.name AS course_name,
+            cs.card_id AS st_card_id, cs.due, cs.stability, cs.difficulty, cs.elapsed_days, cs.scheduled_days, cs.reps, cs.lapses, cs.state, cs.last_review
+     FROM card c
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     JOIN card_state cs ON cs.card_id = c.id
+     WHERE co.name = ? AND c.suspended = 0 AND cs.due <= ? AND cs.state != 0
+     ORDER BY cs.due ASC LIMIT 60`,
+    [courseName, nowIsoStr]
+  )
+  const fresh = await db.select<QueueItem[]>(
+    `SELECT c.id, c.topic_id, c.type, c.front, c.back, c.explanation, c.choices_json, c.answer_index, c.suspended,
+            t.title AS topic_title, co.name AS course_name,
+            NULL AS st_card_id, NULL AS due, NULL AS stability, NULL AS difficulty, NULL AS elapsed_days, NULL AS scheduled_days, NULL AS reps, NULL AS lapses, NULL AS state, NULL AS last_review
+     FROM card c
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     LEFT JOIN card_state cs ON cs.card_id = c.id
+     WHERE co.name = ? AND c.suspended = 0 AND cs.card_id IS NULL
+     ORDER BY c.created_at ASC LIMIT ?`,
+    [courseName, newLimit]
+  )
+  const map = (rows: unknown[]): QueueItem[] =>
+    rows.map((row) => {
+      const r = row as Record<string, unknown>
+      void r
+      return {
+        id: r.id as number,
+        topic_id: r.topic_id as number,
+        type: r.type as string,
+        front: r.front as string,
+        back: r.back as string,
+        explanation: r.explanation as string,
+        choices_json: (r.choices_json as string | null) ?? null,
+        answer_index: (r.answer_index as number | null) ?? null,
+        suspended: (r.suspended as number) || 0,
+        topic_title: r.topic_title as string,
+        course_name: r.course_name as string,
+        st: r.state === null || r.state === undefined ? null : {
+          card_id: r.id as number,
+          due: (r.due as string) || nowIsoStr,
+          stability: (r.stability as number) || 0,
+          difficulty: (r.difficulty as number) || 0,
+          elapsed_days: (r.elapsed_days as number) || 0,
+          scheduled_days: (r.scheduled_days as number) || 0,
+          reps: (r.reps as number) || 0,
+          lapses: (r.lapses as number) || 0,
+          state: r.state as number,
+          last_review: (r.last_review as string) || null,
+        },
+      }
+    })
+  const merged = [...map(fresh as unknown[]), ...map(due as unknown[])]
+  const out: QueueItem[] = []
+  const pool = [...merged]
+  let lastTopic = -1
+  while (pool.length > 0) {
+    let pickAt = pool.findIndex((x) => x.topic_id !== lastTopic)
+    if (pickAt === -1) pickAt = 0
+    const [item] = pool.splice(pickAt, 1)
+    out.push(item)
+    lastTopic = item.topic_id
+  }
+  return out
+}

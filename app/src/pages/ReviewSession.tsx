@@ -1,15 +1,44 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Check, X } from 'lucide-react'
+import { Check, X, Volume2 } from 'lucide-react'
 import { getDb, loadQueue, loadSession, loadQueueByIds, saveSession, clearSession, nowIso, isTauri, type QueueItem } from '../db'
 import { schedule, R } from '../fsrs'
 
 type Phase = 'front' | 'answered'
 
-export default function ReviewSession() {
+/** 单词卡 back 结构（vocab.ts squeeze 输出） */
+interface WordBack {
+  m?: { p: string; t: string }[]
+  s?: { e: string; c: string }[]
+  uk?: string
+  us?: string
+}
+function parseWordBack(back: string): WordBack | null {
+  try {
+    const o = JSON.parse(back)
+    if (o && (o.m || o.s || o.uk || o.us)) return o as WordBack
+    return null
+  } catch {
+    return null
+  }
+}
+/** Tauri WebView2 内置 SpeechSynthesis 朗读单词 */
+function speak(text: string) {
+  try {
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'en-US'
+    u.rate = 0.92
+    speechSynthesis.cancel()
+    speechSynthesis.speak(u)
+  } catch {
+    /* 无语音引擎时静默 */
+  }
+}
+
+export default function ReviewSession({ initialQueue }: { initialQueue?: QueueItem[] }) {
   const nav = useNavigate()
-  const [queue, setQueue] = useState<QueueItem[]>([])
+  const [queue, setQueue] = useState<QueueItem[]>(initialQueue ?? [])
   const [idx, setIdx] = useState(0)
   const [phase, setPhase] = useState<Phase>('front')
   const [picked, setPicked] = useState<number | null>(null)
@@ -21,6 +50,9 @@ export default function ReviewSession() {
   const [loading, setLoading] = useState(true)
   const [fs, setFs] = useState(false)
   const [resumed, setResumed] = useState(false)
+  // 提交中标记 / 提交错误（必须在所有条件 return 之前声明——React hooks 数量每帧必须一致）
+  const committing = useRef(false)
+  const [commitErr, setCommitErr] = useState('')
   /** 全屏开关：开始学习 → 窗口全屏（自绘标题栏自动隐藏）；退出/完成 → 恢复 */
   const enterFs = () => {
     if (isTauri()) getCurrentWindow().setFullscreen(true).catch(() => {})
@@ -47,6 +79,13 @@ export default function ReviewSession() {
   useEffect(() => {
     ;(async () => {
       try {
+        // 外部队列（词书专学）：直接使用，不走快照恢复
+        if (initialQueue && initialQueue.length) {
+          await saveSession(initialQueue.map((x) => x.id), 0).catch(() => {})
+          shownAt.current = Date.now()
+          setLoading(false)
+          return
+        }
         // 断点续学：有上次中断的会话就按快照恢复（否则正常组队）
         const saved = await loadSession()
         if (saved) {
@@ -96,6 +135,20 @@ export default function ReviewSession() {
       if (phase === 'answered' && !hasChoices && ['1', '2', '3', '4'].includes(e.key)) {
         e.preventDefault()
         selfGrade(Number(e.key) as 1 | 2 | 3 | 4)
+        return
+      }
+      // 单词卡：S 朗读（正面/背面均可）
+      if (item.type === 'word' && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault()
+        try {
+          const u = new SpeechSynthesisUtterance(item.front)
+          u.lang = 'en-US'
+          u.rate = 0.92
+          speechSynthesis.cancel()
+          speechSynthesis.speak(u)
+        } catch {
+          /* ignore */
+        }
         return
       }
       if (phase === 'front' && hasChoices && ['1', '2', '3', '4'].includes(e.key)) {
@@ -166,10 +219,8 @@ export default function ReviewSession() {
     }
   })()
 
-  // 提交中标记（同步 ref，防连点/键盘 autorepeat 重复评分）
-  const committing = useRef(false)
+  // 提交中标记已在组件顶部声明（hooks 规则：不能在条件 return 之后声明）
   const committingRef = committing
-  const [commitErr, setCommitErr] = useState('')
 
   const commit = async (grade: number): Promise<boolean> => {
     const db = await getDb()
@@ -252,6 +303,9 @@ export default function ReviewSession() {
     })()
   }
 
+  const isWord = item.type === 'word'
+  const wordBack = isWord ? parseWordBack(item.back) : null
+
   return (
     <div className={`review-stage${fs ? ' review-fs' : ''}`}>
       <div className="review-top">
@@ -273,11 +327,30 @@ export default function ReviewSession() {
       <div className="review-card" key={`${item.id}-${idx}`}>
         <div className="review-kind">
           <span className="tag tag-mono">
-            {item.type === 'basic' ? 'RECALL' : item.type === 'why' ? 'WHY' : 'CHOICE'}
+            {isWord ? 'WORD' : item.type === 'basic' ? 'RECALL' : item.type === 'why' ? 'WHY' : 'CHOICE'}
           </span>
         </div>
 
-        <div className="review-front">{item.front}</div>
+        {isWord ? (
+          <div className="word-front">
+            <div className="word-term">{item.front}</div>
+            <div className="word-phones">
+              {wordBack?.uk && <span className="word-phone">UK /{wordBack.uk}/</span>}
+              {wordBack?.us && <span className="word-phone">US /{wordBack.us}/</span>}
+              <button className="word-speak" title="朗读 (S)" onClick={() => speak(item.front)}>
+                <Volume2 size={14} strokeWidth={1.8} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="review-front">{item.front}</div>
+        )}
+
+        {isWord && phase === 'front' && (
+          <div className="review-hint">
+            先回忆词义 · <kbd>空格</kbd> 翻面 · <kbd>S</kbd> 朗读
+          </div>
+        )}
 
         {choices && (
           <div style={{ marginTop: 16 }}>
@@ -316,13 +389,42 @@ export default function ReviewSession() {
 
         {phase === 'answered' && (
           <div>
-            <div className="review-back">
-              <span className="muted">Answer</span>
-              {item.back}
-            </div>
-            <div className="explain-box">
-              <b>Why</b>{item.explanation}
-            </div>
+            {isWord && wordBack ? (
+              <div className="word-back">
+                <div className="word-senses">
+                  {wordBack.m?.map((m, i) => (
+                    <div className="word-sense" key={i}>
+                      {m.p && <i className="word-pos">{m.p}.</i>}
+                      <span>{m.t}</span>
+                    </div>
+                  ))}
+                </div>
+                {wordBack.s && wordBack.s.length > 0 && (
+                  <div className="word-sents">
+                    {wordBack.s.map((s, i) => (
+                      <div className="word-sent" key={i}>
+                        <div className="word-sent-e">{s.e}</div>
+                        <div className="word-sent-c">{s.c}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button className="word-speak word-speak-lg" title="朗读 (S)" onClick={() => speak(item.front)}>
+                  <Volume2 size={15} strokeWidth={1.8} /> 再听一次
+                </button>
+              </div>
+            ) : (
+              <div className="review-back">
+                <span className="muted">Answer</span>
+                {item.back}
+              </div>
+            )}
+            {!isWord && (
+              <div className="explain-box">
+                <b>Why</b>
+                {item.explanation}
+              </div>
+            )}
             {commitErr && <div className="error-text" style={{ marginTop: 10 }}>{commitErr}</div>}
             {choices ? (
               <div style={{ marginTop: 18 }}>

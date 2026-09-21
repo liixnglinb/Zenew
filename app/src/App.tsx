@@ -13,6 +13,9 @@ import ReviewSession from './pages/ReviewSession'
 import Stats from './pages/Stats'
 import SettingsPage from './pages/Settings'
 import Exams from './pages/Exams'
+import Vocab from './pages/Vocab'
+import VocabStudy from './pages/VocabStudy'
+import Dict from './pages/Dict'
 
 function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: () => void }) {
   const nav = useNavigate()
@@ -31,6 +34,9 @@ function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: (
         </NavLink>
         <NavLink to="/courses" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
           <BookOpen size={15} /> 课程
+        </NavLink>
+        <NavLink to="/vocab" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+          <BookOpen size={15} /> 词书
         </NavLink>
         <NavLink to="/exams" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
           <CalendarDays size={15} /> 考试
@@ -70,6 +76,9 @@ function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: (
             <Route path="/today" element={<Today />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/vocab" element={<Vocab />} />
+            <Route path="/vocab/:key" element={<VocabStudy />} />
+            <Route path="/dict" element={<Dict />} />
             <Route path="/exams" element={<Exams />} />
             <Route path="/review" element={<ReviewSession />} />
             <Route path="/stats" element={<Stats />} />
