@@ -4,19 +4,22 @@ import type { Update } from '@tauri-apps/plugin-updater'
 import { checkUpdate, applyUpdate } from '../updater'
 import { isTauri } from '../db'
 
-type Phase = 'checking' | 'idle' | 'available' | 'downloading' | 'restarting' | 'error'
+type Phase = 'boot' | 'checking' | 'idle' | 'available' | 'downloading' | 'restarting' | 'error'
 
 const mb = (n: number) => (n / 1048576).toFixed(1)
 
-/** 标题栏更新胶囊：替换旧版本号位。自动检查（启动+每30分钟），静默检查不闪 UI；
- *  四态切换：idle 已是最新 / available 新版本（点击更新）/ downloading 进度（悬停看 MB）/ restarting 即将重启 */
+/**
+ * 标题栏更新胶囊：替换旧版本号位。
+ * 启动静默检查 + 每 30 分钟；静默检查失败不显眼——保持上次状态（boot 态保持胶囊隐藏），
+ * 只有用户手动点「检查」失败才显示「重试」。已是最新（idle）时显示当前版本号。
+ */
 export default function UpdatePill() {
-  const [phase, setPhase] = useState<Phase>('checking')
+  const [phase, setPhase] = useState<Phase>('boot')
   const [version, setVersion] = useState('')
   const [pct, setPct] = useState(0)
   const [bytes, setBytes] = useState<{ got: number; total: number | null }>({ got: 0, total: null })
   const updRef = useRef<Update | null>(null)
-  const phaseRef = useRef<Phase>('checking')
+  const phaseRef = useRef<Phase>('boot')
   phaseRef.current = phase
   const [curVer, setCurVer] = useState('')
 
@@ -27,8 +30,10 @@ export default function UpdatePill() {
     if (!silent) setPhase('checking')
     const u = await checkUpdate().catch(() => undefined)
     if (u === undefined) {
-      // 检查失败（网络断等）：不伪装成最新，仅在空闲态提示
-      if (phaseRef.current === 'checking' || phaseRef.current === 'idle') setPhase('error')
+      // 检查失败：
+      //  - 静默检查失败 → 不打扰用户：保持当前显示（boot/idle 等原样），只有「手动检查中」才落错误态
+      //  - 手动检查失败 → 显示「重试」（用户有明确预期，需要入口）
+      if (!silent && phaseRef.current === 'checking') setPhase('error')
       return
     }
     if (u) {
@@ -48,6 +53,7 @@ export default function UpdatePill() {
     runCheck(true)
     const t = setInterval(() => runCheck(true), 30 * 60 * 1000)
     return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const start = async () => {
@@ -70,6 +76,10 @@ export default function UpdatePill() {
     }
   }
 
+  if (phase === 'boot') {
+    // 启动静默检查还没出结果（或失败）：不占标题栏，避免无意义的「重试」晃眼
+    return <span className="update-pill" style={{ visibility: 'hidden' }}>{curVer ? `v${curVer}` : ''}</span>
+  }
   if (phase === 'checking') {
     return <span className="update-pill">检查中…</span>
   }

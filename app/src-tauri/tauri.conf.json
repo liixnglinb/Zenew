@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Zenew",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "identifier": "com.zenew.app",
   "build": {
     "frontendDist": "../dist",
@@ -57,6 +57,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1NTBGNDVFMDU2RjFFMTQKUldRVUhtOEZYdlJROWR5SUVvVFZQOEs4Ui9zdlh2aTNzZEtRS2NVRlBQQm9leVYweDA3UHN4ckIK",
       "endpoints": [
+        "https://lxlrwxs.top/zenew/dl/latest.json",
         "https://github.com/liixnglinb/Zenew/releases/latest/download/latest.json"
       ]
     }

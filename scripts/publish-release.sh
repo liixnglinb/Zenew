@@ -24,6 +24,7 @@ cp "$SETUP_SRC" "$OUT/Zenew-Setup.exe"          # ASCII 固定名，latest/downl
 cp "$SIG_SRC"   "$OUT/Zenew-Setup.exe.sig"
 
 # 生成更新清单 latest.json（signature 取自 .sig 文件内容）
+# URL 同时给 GitHub 直链与自家 CDN 镜像（lxlrwxs.top），客户端可多端点容灾
 python - "$OUT" "$VERSION" "$TAG" "$REPO" <<'PY'
 import json, sys, io, datetime, os
 out, version, tag, repo = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
@@ -35,7 +36,7 @@ manifest = {
     "platforms": {
         "windows-x86_64": {
             "signature": sig,
-            "url": f"https://github.com/{repo}/releases/download/{tag}/Zenew-Setup.exe",
+            "url": f"https://lxlrwxs.top/zenew/dl/Zenew-Setup.exe",
         }
     },
 }
