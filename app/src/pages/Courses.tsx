@@ -107,18 +107,16 @@ export default function Courses() {
     setErr('')
     try {
       const db = await getDb()
-      await db.execute('BEGIN')
+      // ⚠ tauri-plugin-sql 的 execute 走连接池，BEGIN/COMMIT 会落在不同连接上（事务撕裂），
+      // 不能用显式事务。按依赖顺序逐条删；中途失败重按「删除课程」即可续删（每条语句幂等）。
       await db.execute('DELETE FROM card_state WHERE card_id IN (SELECT id FROM card WHERE topic_id IN (SELECT id FROM topic WHERE course_id=?))', [c.id])
       await db.execute('DELETE FROM review_log WHERE card_id IN (SELECT id FROM card WHERE topic_id IN (SELECT id FROM topic WHERE course_id=?))', [c.id])
       await db.execute('DELETE FROM card WHERE topic_id IN (SELECT id FROM topic WHERE course_id=?)', [c.id])
       await db.execute('DELETE FROM topic WHERE course_id=?', [c.id])
       await db.execute('DELETE FROM exam WHERE course_id=?', [c.id])
       await db.execute('DELETE FROM course WHERE id=?', [c.id])
-      await db.execute('COMMIT')
       await load()
     } catch (e) {
-      const db = await getDb()
-      await db.execute('ROLLBACK').catch(() => {})
       console.error(e)
       setErr('删除失败，请重试')
     }

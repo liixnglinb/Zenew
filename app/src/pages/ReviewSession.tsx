@@ -226,8 +226,14 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
     const db = await getDb()
     const { next } = schedule(item.st, grade as 1 | 2 | 3 | 4)
     const row = { ...next, card_id: item.id }
-    await db.execute('BEGIN')
     try {
+      // ⚠ tauri-plugin-sql 的 db.execute 走 sqlx 连接池，每条语句可能落在不同连接上，
+      // BEGIN/COMMIT 会撕裂（BEGIN 在 A 连接，后面语句自动提交在 B/C 连接，COMMIT 报无事务）。
+      // 所以这里绝不能用显式事务：两条语句各自原子即可——
+      //   ① upsert card_state（ON CONFLICT 单语句原子）
+      //   ② 插 review_log
+      // ② 失败时 ① 已生效：下次复习照常调度（少一条日志不影响正确性），
+      //   此时也静默推进，不再拿「保存失败」打断用户（卡状态其实已经写进去了）。
       await db.execute(
         `INSERT INTO card_state(card_id,due,stability,difficulty,elapsed_days,scheduled_days,reps,lapses,state,last_review)
          VALUES(?,?,?,?,?,?,?,?,?,?)
@@ -241,11 +247,9 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
         grade,
         nowIso(),
         Date.now() - shownAt.current,
-      ])
-      await db.execute('COMMIT')
+      ]).catch(() => {})
       return true
     } catch (e) {
-      await db.execute('ROLLBACK').catch(() => {})
       console.error('commit 失败', e)
       setCommitErr('保存失败，请重试')
       return false
