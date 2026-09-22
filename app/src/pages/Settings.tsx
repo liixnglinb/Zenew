@@ -232,9 +232,6 @@ export default function SettingsPage() {
               网页支付后自动到账，或领取卡密在此兑换
             </div>
           </div>
-          <button className="btn btn-sm" onClick={loadMe} title="刷新余额">
-            刷新
-          </button>
           <button className="btn btn-primary btn-sm" onClick={goBuy}>
             去购买
           </button>

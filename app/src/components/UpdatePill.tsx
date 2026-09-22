@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { getVersion } from '@tauri-apps/api/app'
 import type { Update } from '@tauri-apps/plugin-updater'
 import { checkUpdate, applyUpdate } from '../updater'
 import { isTauri } from '../db'
@@ -15,13 +14,11 @@ const mb = (n: number) => (n / 1048576).toFixed(1)
  */
 export default function UpdatePill() {
   const [phase, setPhase] = useState<Phase>('boot')
-  const [version, setVersion] = useState('')
   const [pct, setPct] = useState(0)
   const [bytes, setBytes] = useState<{ got: number; total: number | null }>({ got: 0, total: null })
   const updRef = useRef<Update | null>(null)
   const phaseRef = useRef<Phase>('boot')
   phaseRef.current = phase
-  const [curVer, setCurVer] = useState('')
 
   const runCheck = async (silent = true) => {
     if (!isTauri()) return
@@ -38,7 +35,6 @@ export default function UpdatePill() {
     }
     if (u) {
       updRef.current = u
-      setVersion(u.version)
       setPhase('available')
     } else {
       updRef.current = null
@@ -47,9 +43,7 @@ export default function UpdatePill() {
   }
 
   useEffect(() => {
-    // 当前版本号（idle 态显示，回答「我现在是什么版本」）
-    if (isTauri()) getVersion().then((v) => setCurVer(v)).catch(() => {})
-    // 启动静默检查 + 每 30 分钟（静默，不闪「检查中」）
+    // 启动静默检查 + 每 30 分钟（静默）
     runCheck(true)
     const t = setInterval(() => runCheck(true), 30 * 60 * 1000)
     return () => clearInterval(t)
@@ -77,23 +71,21 @@ export default function UpdatePill() {
   }
 
   if (phase === 'boot') {
-    // 启动静默检查还没出结果（或失败）：不占标题栏，避免无意义的「重试」晃眼
-    return <span className="update-pill" style={{ visibility: 'hidden' }}>{curVer ? `v${curVer}` : ''}</span>
+    // 静默检查没出结果（或失败）：什么都不显示——已是最新时标题栏保持干净
+    return null
   }
   if (phase === 'checking') {
+    // 只有手动点检查才会进这里；静默后台检查不打扰
     return <span className="update-pill">检查中…</span>
   }
   if (phase === 'idle') {
-    return (
-      <button className="update-pill" title={`自动检查更新 · 点击再次检查${curVer ? ` · 当前 v${curVer}` : ''}`} onClick={() => runCheck(false)}>
-        {curVer ? `v${curVer} · 最新` : '已是最新'}
-      </button>
-    )
+    // 已是最新：不显示任何东西（用户要求：没新版本就不显示）
+    return null
   }
   if (phase === 'available') {
     return (
-      <button className="update-pill is-avail" title="点击立即更新（免安装，完成后自动重启）" onClick={start}>
-        新版本 {version}
+      <button className="update-pill is-avail" title="有新版本 · 点击立即更新（免安装，完成后自动重启）" onClick={start}>
+        更新
       </button>
     )
   }

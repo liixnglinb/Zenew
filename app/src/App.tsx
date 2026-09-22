@@ -1,6 +1,6 @@
-import { HashRouter, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { HashRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { BookOpen, BarChart3, CalendarDays, Home, LogOut, Settings } from 'lucide-react'
+import { BookOpen, BarChart3, CalendarDays, Coins, Home, LogOut, Settings } from 'lucide-react'
 import { ApiError, fetchMe, getToken, setToken, type Me } from './api'
 import { isTauri, ensureSchema } from './db'
 import { watchTopup, type TopupEvent } from './topup'
@@ -19,10 +19,27 @@ import Dict from './pages/Dict'
 
 function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: () => void }) {
   const nav = useNavigate()
+  const location = useLocation()
+  // 复习会话是沉浸场景：不显示侧栏与横幅（全屏与否都聚焦在卡片上）
+  const immersive = location.pathname.startsWith('/review') || /^\/vocab\/[^/]+$/.test(location.pathname)
+  // 侧栏余额卡片：进入应用/到账后刷新（banner 变化即到账 → 重新拉 /me）
+  const [quota, setQuota] = useState<{ balance: number; free: number; total: number } | null>(null)
+  useEffect(() => {
+    if (immersive) return
+    let dead = false
+    fetchMe()
+      .then((m) => {
+        if (!dead) setQuota({ balance: m.balance_tokens || 0, free: Math.max(0, m.quota_tokens - m.used_tokens), total: m.quota_tokens || 0 })
+      })
+      .catch(() => {})
+    return () => { dead = true }
+  }, [immersive, banner])
+  const freePct = quota && quota.total > 0 ? Math.min(100, (quota.free / quota.total) * 100) : 0
   return (
-    <div className="shell">
+    <div className={`shell${immersive ? ' immersive' : ''}`}>
       <div className="ambient" style={{ width: 420, height: 420, top: -140, right: -120, background: 'radial-gradient(circle, var(--gold-glow) 0%, rgba(255,224,138,0) 70%)' }} />
       <div className="ambient" style={{ width: 380, height: 380, bottom: -160, right: 240, animationDelay: '3s', background: 'radial-gradient(circle, var(--gold-glow) 0%, rgba(255,224,138,0) 70%)' }} />
+      {!immersive && (
       <aside className="sidebar">
         <div className="brand">
           知新
@@ -47,6 +64,27 @@ function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: (
         <NavLink to="/settings" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
           <Settings size={15} /> 设置
         </NavLink>
+        {quota && (
+          <div
+            className="side-balance fade-up"
+            title="点击查看余额与充值"
+            onClick={() => nav('/settings')}
+          >
+            <div className="side-balance-label">BALANCE</div>
+            <div className="side-balance-num">
+              {(quota.balance / 10000).toFixed(0)}
+              <small>万 tokens</small>
+            </div>
+            <div className="side-balance-row">
+              <div className="side-balance-bar">
+                <span style={{ width: `${freePct}%` }} />
+              </div>
+              <span className="side-balance-free">
+                <Coins size={9} style={{ verticalAlign: -1 }} /> 免费 {(quota.free / 10000).toFixed(1)} 万
+              </span>
+            </div>
+          </div>
+        )}
         <div className="spacer" />
         <button
           className="nav-item"
@@ -58,9 +96,10 @@ function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: (
           <LogOut size={15} /> 退出登录
         </button>
       </aside>
+      )}
       <main className="main">
         <div className="main-inner">
-          {banner && (
+          {banner && !immersive && (
             <div className="update-banner fade-up" style={{ marginBottom: 18 }}>
               <div>
                 <b>{banner}</b>

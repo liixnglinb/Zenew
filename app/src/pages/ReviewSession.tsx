@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { Check, X, Volume2 } from 'lucide-react'
+import { Check, X, Volume2, Maximize2, Minimize2 } from 'lucide-react'
 import { getDb, loadQueue, loadSession, loadQueueByIds, saveSession, clearSession, nowIso, isTauri, type QueueItem } from '../db'
 import { schedule, R } from '../fsrs'
 
@@ -53,26 +53,27 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
   // 提交中标记 / 提交错误（必须在所有条件 return 之前声明——React hooks 数量每帧必须一致）
   const committing = useRef(false)
   const [commitErr, setCommitErr] = useState('')
-  /** 全屏开关：开始学习 → 窗口全屏（自绘标题栏自动隐藏）；退出/完成 → 恢复 */
+  /** 全屏开关：不再自动进——由用户自己选（顶部按钮）。记住用户选择，下次会话沿用 */
   const enterFs = () => {
     if (isTauri()) getCurrentWindow().setFullscreen(true).catch(() => {})
+    try { localStorage.setItem('zenew_review_fs', '1') } catch {}
   }
   const exitFs = () => {
     if (isTauri()) getCurrentWindow().setFullscreen(false).catch(() => {})
+    try { localStorage.setItem('zenew_review_fs', '0') } catch {}
   }
   useEffect(() => {
-    enterFs()
+    // 仅监听窗口尺寸变化同步 UI 态，不再主动进全屏
     if (isTauri()) {
       const win = getCurrentWindow()
       const p = win.onResized(async () => {
         try { setFs(await win.isFullscreen()) } catch {}
       })
       return () => {
-        exitFs()
         p.then((f) => f()).catch(() => {})
       }
     }
-    return () => exitFs()
+    return () => {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -312,140 +313,156 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
 
   return (
     <div className={`review-stage${fs ? ' review-fs' : ''}`}>
-      <div className="review-top">
+      <div className={`review-top${fs ? ' fs' : ''}`}>
         <div className="review-progress">
           <span className="review-progress-num">{String(idx + 1).padStart(2, '0')} / {String(queue.length).padStart(2, '0')}</span>
           <div className="bar">
             <span className="seg-gold" style={{ width: `${((idx + 1) / queue.length) * 100}%` }} />
           </div>
         </div>
-        <span className="review-loc">{item.course_name} · {item.topic_title}</span>
-        {resumed && (
-          <span className="tag tag-mono" style={{ marginRight: 8 }} title="从中断处继续">已续</span>
-        )}
-        <button className="review-exit" title="退出学习（Esc）" onClick={() => { exitFs(); nav('/today') }}>
-          <X size={14} strokeWidth={1.8} />
-        </button>
+        <div className="review-top-right">
+          {!fs && (
+            <>
+              <span className="review-loc">{item.course_name} · {item.topic_title}</span>
+              {resumed && (
+                <span className="tag tag-mono" style={{ marginRight: 8 }} title="从中断处继续">已续</span>
+              )}
+            </>
+          )}
+          <button
+            className="review-exit"
+            title={fs ? '退出全屏' : '进入全屏'}
+            onClick={() => (fs ? exitFs() : enterFs())}
+          >
+            {fs ? <Minimize2 size={14} strokeWidth={1.8} /> : <Maximize2 size={14} strokeWidth={1.8} />}
+          </button>
+          <button className="review-exit" title="退出学习（Esc）" onClick={() => { exitFs(); nav('/today') }}>
+            <X size={14} strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
-      <div className="review-card" key={`${item.id}-${idx}`}>
-        <div className="review-kind">
-          <span className="tag tag-mono">
-            {isWord ? 'WORD' : item.type === 'basic' ? 'RECALL' : item.type === 'why' ? 'WHY' : 'CHOICE'}
-          </span>
-        </div>
-
-        {isWord ? (
-          <div className="word-front">
-            <div className="word-term">{item.front}</div>
-            <div className="word-phones">
-              {wordBack?.uk && <span className="word-phone">UK /{wordBack.uk}/</span>}
-              {wordBack?.us && <span className="word-phone">US /{wordBack.us}/</span>}
-              <button className="word-speak" title="朗读 (S)" onClick={() => speak(item.front)}>
-                <Volume2 size={14} strokeWidth={1.8} />
-              </button>
+      <div className={`review-card flip-wrap${fs ? ' review-fs-card' : ''}${phase === 'answered' ? ' is-flipped' : ''}`} key={`${item.id}-${idx}`}>
+        <div className="flip-inner">
+          {/* 正面 */}
+          <div className="flip-face flip-front">
+            <div className="review-kind">
+              <span className="tag tag-mono">
+                {isWord ? 'WORD' : item.type === 'basic' ? 'RECALL' : item.type === 'why' ? 'WHY' : 'CHOICE'}
+              </span>
             </div>
-          </div>
-        ) : (
-          <div className="review-front">{item.front}</div>
-        )}
 
-        {isWord && phase === 'front' && (
-          <div className="review-hint">
-            先回忆词义 · <kbd>空格</kbd> 翻面 · <kbd>S</kbd> 朗读
-          </div>
-        )}
-
-        {choices && (
-          <div style={{ marginTop: 16 }}>
-            {choices.map((c, i) => {
-              const revealed = phase === 'answered'
-              const isRight = i === (item.answer_index ?? 0)
-              const cls = revealed ? (isRight ? 'right' : i === picked ? 'wrong' : 'dim') : ''
-              return (
-                <button key={i} className={`choice-btn ${cls}`} onClick={() => !revealed && pickChoice(i)}>
-                  <span className="choice-key">{i + 1}</span>
-                  <span style={{ flex: 1 }}>{c}</span>
-                  {revealed && isRight && <Check size={15} style={{ color: 'var(--green)' }} />}
-                  {revealed && i === picked && !isRight && <X size={15} style={{ color: 'var(--red)' }} />}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {choices && phase === 'front' && (
-          <div className="review-hint">点击选项，或按 <kbd>1</kbd>-<kbd>4</kbd> 作答</div>
-        )}
-
-        {!choices && phase === 'front' && (
-          <>
-            <div style={{ marginTop: 24 }}>
-              <button className="btn btn-primary btn-lg" onClick={() => setPhase('answered')}>
-                显示答案
-              </button>
-            </div>
-            <div className="review-hint">
-              先回忆 · <kbd>空格</kbd> 翻面
-            </div>
-          </>
-        )}
-
-        {phase === 'answered' && (
-          <div>
-            {isWord && wordBack ? (
-              <div className="word-back">
-                <div className="word-senses">
-                  {wordBack.m?.map((m, i) => (
-                    <div className="word-sense" key={i}>
-                      {m.p && <i className="word-pos">{m.p}.</i>}
-                      <span>{m.t}</span>
-                    </div>
-                  ))}
+            {isWord ? (
+              <div className="word-front">
+                <div className="word-term">{item.front}</div>
+                <div className="word-phones">
+                  {wordBack?.uk && <span className="word-phone">UK /{wordBack.uk}/</span>}
+                  {wordBack?.us && <span className="word-phone">US /{wordBack.us}/</span>}
+                  <button className="word-speak" title="朗读 (S)" onClick={() => speak(item.front)}>
+                    <Volume2 size={14} strokeWidth={1.8} />
+                  </button>
                 </div>
-                {wordBack.s && wordBack.s.length > 0 && (
-                  <div className="word-sents">
-                    {wordBack.s.map((s, i) => (
-                      <div className="word-sent" key={i}>
-                        <div className="word-sent-e">{s.e}</div>
-                        <div className="word-sent-c">{s.c}</div>
+              </div>
+            ) : (
+              <div className="review-front">{item.front}</div>
+            )}
+
+            {choices && (
+              <div style={{ marginTop: 16 }}>
+                {choices.map((c, i) => {
+                  const revealed = phase === 'answered'
+                  const isRight = i === (item.answer_index ?? 0)
+                  const cls = revealed ? (isRight ? 'right' : i === picked ? 'wrong' : 'dim') : ''
+                  return (
+                    <button key={i} className={`choice-btn ${cls}`} onClick={() => !revealed && pickChoice(i)}>
+                      <span className="choice-key">{i + 1}</span>
+                      <span style={{ flex: 1 }}>{c}</span>
+                      {revealed && isRight && <Check size={15} style={{ color: 'var(--green)' }} />}
+                      {revealed && i === picked && !isRight && <X size={15} style={{ color: 'var(--red)' }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {choices && phase === 'front' && (
+              <div className="review-hint">点击选项，或按 <kbd>1</kbd>-<kbd>4</kbd> 作答</div>
+            )}
+
+            {!choices && phase === 'front' && (
+              <>
+                <div className="reveal-row">
+                  <button className="btn btn-primary btn-lg" onClick={() => setPhase('answered')}>
+                    显示答案
+                  </button>
+                </div>
+                <div className="review-hint">
+                  先回忆 · <kbd>空格</kbd> 翻面
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 背面：3D 翻转衔接（CSS 接管）；选择题保持原地作答不翻转 */}
+          {phase === 'answered' && (
+            <div className={`flip-face flip-back${choices ? ' no-flip' : ''}`}>
+              {isWord && wordBack ? (
+                <div className="word-back">
+                  <div className="word-back-term">
+                    <span className="word-back-word">{item.front}</span>
+                    <button className="word-speak" title="朗读 (S)" onClick={() => speak(item.front)}>
+                      <Volume2 size={13} strokeWidth={1.8} />
+                    </button>
+                  </div>
+                  <div className="word-senses">
+                    {wordBack.m?.map((m, i) => (
+                      <div className="word-sense" key={i}>
+                        {m.p && <i className="word-pos">{m.p}.</i>}
+                        <span>{m.t}</span>
                       </div>
                     ))}
                   </div>
-                )}
-                <button className="word-speak word-speak-lg" title="朗读 (S)" onClick={() => speak(item.front)}>
-                  <Volume2 size={15} strokeWidth={1.8} /> 再听一次
-                </button>
-              </div>
-            ) : (
-              <div className="review-back">
-                <span className="muted">Answer</span>
-                {item.back}
-              </div>
-            )}
-            {!isWord && (
-              <div className="explain-box">
-                <b>Why</b>
-                {item.explanation}
-              </div>
-            )}
-            {commitErr && <div className="error-text" style={{ marginTop: 10 }}>{commitErr}</div>}
-            {choices ? (
-              <div style={{ marginTop: 18 }}>
-                <button className="btn btn-primary" onClick={advance}>
-                  {idx + 1 >= queue.length ? '完成' : '下一张'} <kbd className="kbd-in-gold">⏎</kbd>
-                </button>
-              </div>
-            ) : (
-              <div className="grade-row">
-                <button className="btn g-again" disabled={committing.current} onClick={() => selfGrade(1)}>忘了<small>1</small></button>
-                <button className="btn g-hard" disabled={committing.current} onClick={() => selfGrade(2)}>想起<small>2</small></button>
-                <button className="btn g-good" disabled={committing.current} onClick={() => selfGrade(3)}>记得<small>3</small></button>
-                <button className="btn g-easy" disabled={committing.current} onClick={() => selfGrade(4)}>秒答<small>4</small></button>
-              </div>
-            )}
-          </div>
-        )}
+                  {wordBack.s && wordBack.s.length > 0 && (
+                    <div className="word-sents">
+                      {wordBack.s.map((s, i) => (
+                        <div className="word-sent" key={i}>
+                          <div className="word-sent-e">{s.e}</div>
+                          <div className="word-sent-c">{s.c}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="review-back">
+                  <span className="muted">Answer</span>
+                  {item.back}
+                </div>
+              )}
+              {!isWord && (
+                <div className="explain-box">
+                  <b>Why</b>
+                  {item.explanation}
+                </div>
+              )}
+              {commitErr && <div className="error-text" style={{ marginTop: 10 }}>{commitErr}</div>}
+              {choices ? (
+                <div style={{ marginTop: 18 }}>
+                  <button className="btn btn-primary" onClick={advance}>
+                    {idx + 1 >= queue.length ? '完成' : '下一张'} <kbd className="kbd-in-gold">⏎</kbd>
+                  </button>
+                </div>
+              ) : (
+                <div className="grade-row">
+                  <button className="btn g-again" disabled={committing.current} onClick={() => selfGrade(1)}>忘了<small>1</small></button>
+                  <button className="btn g-hard" disabled={committing.current} onClick={() => selfGrade(2)}>想起<small>2</small></button>
+                  <button className="btn g-good" disabled={committing.current} onClick={() => selfGrade(3)}>记得<small>3</small></button>
+                  <button className="btn g-easy" disabled={committing.current} onClick={() => selfGrade(4)}>秒答<small>4</small></button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

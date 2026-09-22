@@ -154,8 +154,26 @@ button.update-pill:hover { color: var(--ink); border-color: var(--ink); transfor
   transition: background .15s var(--ease), color .15s var(--ease), padding .2s var(--ease);
 }
 .nav-item:hover { background: var(--paper-sunken); color: var(--ink); }
-.nav-item.active { background: var(--ink); color: #fff; font-weight: 600; }
+.nav-item.active { background: var(--gold-wash); color: var(--gold-deep); font-weight: 600; }
 .nav-item.active svg { color: var(--gold); }
+.nav-item.active:hover { background: var(--gold-wash); }
+
+/* 侧栏余额卡片 */
+.side-balance {
+  margin: 10px 6px 0; padding: 12px 14px 11px;
+  border-radius: 16px; background: var(--paper);
+  box-shadow: var(--shadow-card); cursor: pointer;
+  transition: transform .18s var(--ease), box-shadow .18s var(--ease);
+  border: 1px solid var(--gold-line);
+}
+.side-balance:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(27,27,27,.07); }
+.side-balance-label { font-family: var(--mono); font-size: 9px; color: var(--ink-3); letter-spacing: 1px; }
+.side-balance-num { font-size: 19px; font-weight: 800; color: var(--gold-deep); letter-spacing: -.5px; margin-top: 2px; font-variant-numeric: lining-nums; }
+.side-balance-num small { font-size: 10.5px; font-weight: 600; color: var(--ink-3); margin-left: 2px; letter-spacing: 0; }
+.side-balance-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.side-balance-bar { flex: 1; height: 4px; border-radius: 999px; background: var(--bg-2); overflow: hidden; margin-right: 8px; }
+.side-balance-bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold), var(--gold-soft)); }
+.side-balance-free { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); white-space: nowrap; }
 .nav-item svg { flex-shrink: 0; transition: transform .2s var(--ease-spring); }
 .nav-item:hover svg { transform: scale(1.12); }
 
@@ -335,23 +353,53 @@ kbd {
 .review-progress .bar { width: 110px; }
 .review-loc { font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: .3px; margin-left: auto; }
 
+/* ================= 复习卡片（3D 翻面 + 排版） ================= */
 .review-card {
   background: var(--paper);
   border-radius: 24px;
   box-shadow: var(--shadow-pop);
-  padding: 36px 38px 30px;
+  padding: 0;
   min-height: 380px;
-  display: flex; flex-direction: column;
+  perspective: 1600px;
   animation: fadeUp .35s var(--ease);
 }
 .review-card.entering { animation: cardIn .3s var(--ease); }
 @keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
 
+/* 3D 翻面：正面/背面双面结构，点「显示答案」翻到背面 */
+.flip-inner {
+  position: relative;
+  min-height: 380px;
+  transform-style: preserve-3d;
+  transition: transform .5s cubic-bezier(.2, .75, .25, 1);
+  display: flex; flex-direction: column;
+}
+.flip-wrap.is-flipped .flip-inner { transform: rotateY(180deg); }
+.flip-face {
+  display: flex; flex-direction: column; flex: 1;
+  padding: 34px 38px 30px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.flip-front { transform: rotateY(0deg); }
+.flip-back {
+  position: absolute; inset: 0;
+  transform: rotateY(180deg);
+  justify-content: flex-start;
+  padding-top: 6px;
+}
+/* 选择题不走 3D 翻转（原地作答），翻转容器退化为普通布局 */
+.flip-back.no-flip { position: static; transform: none; backface-visibility: visible; }
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner { transition: none; }
+}
+
 .review-kind { margin-bottom: 14px; }
+.flip-back .review-back { margin-top: 12px; }
 .review-front {
   font-size: 20px; font-weight: 700; letter-spacing: -.4px; line-height: 1.55;
 }
-.review-hint { color: var(--ink-3); font-size: 12px; margin-top: auto; padding-top: 22px; }
+.reveal-row { display: flex; justify-content: center; margin-top: auto; padding-top: 20px; }
+.review-hint { color: var(--ink-3); font-size: 12px; margin-top: auto; padding-top: 22px; text-align: center; }
 .review-back {
   margin-top: 22px; padding: 13px 17px;
   background: var(--gold-wash); border-left: 2px solid var(--gold);
@@ -604,9 +652,10 @@ kbd {
 .word-phones { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
 .word-phone { font-family: var(--mono); font-size: 12px; color: var(--ink-2); letter-spacing: .3px; }
 .word-speak {
-  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 36px; height: 36px; padding: 0;
   border: 1px solid var(--border); border-radius: 999px; background: transparent;
-  color: var(--ink-2); cursor: pointer; font-size: 12px; transition: border-color .15s var(--ease), color .15s var(--ease);
+  color: var(--ink-2); cursor: pointer; transition: border-color .15s var(--ease), color .15s var(--ease), transform .15s var(--ease);
 }
 .word-speak:hover { border-color: var(--gold); color: var(--gold); }
 .word-speak-lg { margin-top: 16px; }
@@ -617,3 +666,37 @@ kbd {
 .word-sents { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; border-top: 1px dashed var(--border); padding-top: 14px; }
 .word-sent-e { font-size: 14px; color: var(--ink-1); line-height: 1.5; }
 .word-sent-c { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+
+/* ---------- 复习沉浸态：隐藏侧栏后主区铺满 ---------- */
+.shell.immersive .main { padding: 0; }
+.shell.immersive .main-inner { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+.shell.immersive .titlebar { background: transparent; }
+
+/* ---------- 复习顶部栏 ---------- */
+.review-top-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.review-top.fs .review-loc, .review-top.fs .tag { display: none; }
+.review-top.fs { position: fixed; top: 14px; left: 0; right: 0; padding: 0 28px; z-index: 30; }
+.review-stage.review-fs { padding-top: 10vh; }
+
+/* ---------- 单词卡排版（百词斩式：正面极简居中，背面词条式） ---------- */
+.word-front { text-align: center; padding: 12px 0 4px; justify-content: center; display: flex; flex-direction: column; flex: 1; }
+.flip-front .review-kind { position: absolute; top: 26px; left: 34px; margin: 0; }
+.flip-face { position: relative; }
+.word-term { font-size: 54px; font-weight: 700; letter-spacing: -0.5px; color: var(--ink-1); line-height: 1.12; }
+.word-phones { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 16px; }
+.word-phone { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); letter-spacing: .3px; }
+.word-back-term { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; }
+.word-back-term .word-speak { width: 38px; height: 38px; }
+.word-back-word { font-size: 26px; font-weight: 700; color: var(--ink-1); letter-spacing: -0.3px; }
+.review-fs-card .word-term { font-size: 62px; }
+.review-fs-card { min-height: 480px; }
+.review-fs-card .flip-inner { min-height: 480px; }
+.review-fs-card .flip-face { padding: 44px 52px 38px; }
+.review-fs-card .review-front { font-size: 23px; }
+.review-fs-card .review-back { font-size: 17px; }
+.word-senses { margin-top: 8px; gap: 6px; }
+.word-sense { font-size: 17px; }
+.word-sents { margin-top: 20px; gap: 10px; }
+.word-sent-e { font-size: 14.5px; }
+.grade-row { margin-top: auto; padding-top: 20px; }
+.word-back .grade-row { margin-top: 28px; }
