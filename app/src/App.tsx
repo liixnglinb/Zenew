@@ -41,11 +41,6 @@ function Shell({ banner, onDismissBanner }: { banner: string; onDismissBanner: (
       <div className="ambient" style={{ width: 380, height: 380, bottom: -160, right: 240, animationDelay: '3s', background: 'radial-gradient(circle, var(--gold-glow) 0%, rgba(255,224,138,0) 70%)' }} />
       {!immersive && (
       <aside className="sidebar">
-        <div className="brand">
-          知新
-          <small>ZENEW</small>
-        </div>
-        <div style={{ height: 14 }} />
         <NavLink to="/today" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
           <Home size={15} /> 今日
         </NavLink>
