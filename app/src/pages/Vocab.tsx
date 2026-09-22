@@ -16,14 +16,37 @@ export default function Vocab() {
   const nav = useNavigate()
   const [progress, setProgress] = useState<Progress>({})
   const [busy, setBusy] = useState(false)
+  const [top, setTop] = useState<{ cards: number; learned: number; due: number; mastered: number } | null>(null)
 
   const refresh = async () => {
+    let cards = 0, learned = 0
     const next: Progress = {}
     for (const b of WORD_BOOKS) {
       const s = await vocabCourseStats(b.name, q)
       next[b.key] = { cards: s.cards, learned: s.learned, importing: 0, loaded: 0, err: '' }
+      cards += s.cards
+      learned += s.learned
     }
     setProgress(next)
+    // 顶部统计卡：词书总量 / 已学 / 今日到期 / 已掌握（生词本+四书合并口径）
+    const db = await getDb()
+    const now = new Date().toISOString()
+    const nb = await db.select<{ n: number }[]>(
+      `SELECT COUNT(*) AS n FROM card c JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
+       WHERE co.kind='vocab' AND c.suspended=0`
+    )
+    const due = await db.select<{ n: number }[]>(
+      `SELECT COUNT(*) AS n FROM card_state cs JOIN card c ON c.id=cs.card_id
+       JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
+       WHERE co.kind='vocab' AND c.suspended=0 AND cs.due<=? AND cs.state!=0`,
+      [now]
+    )
+    const mastered = await db.select<{ n: number }[]>(
+      `SELECT COUNT(*) AS n FROM card_state cs JOIN card c ON c.id=cs.card_id
+       JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
+       WHERE co.kind='vocab' AND cs.state=2 AND cs.stability>=21`
+    )
+    setTop({ cards: Number(nb[0]?.n ?? 0), learned, due: Number(due[0]?.n ?? 0), mastered: Number(mastered[0]?.n ?? 0) })
   }
 
   useEffect(() => {
@@ -89,15 +112,43 @@ export default function Vocab() {
         </button>
       </div>
 
-      <div className="book-grid">
+      <div className="metric-row" style={{ marginTop: 20 }}>
+        <div className={`metric${top && top.due > 0 ? ' metric-hl' : ''}`}>
+          <b>{top?.due ?? '·'}</b>
+          <span>今日待复习</span>
+        </div>
+        <div className="metric">
+          <b>{top?.learned ?? '·'}</b>
+          <span>已学</span>
+        </div>
+        <div className="metric">
+          <b>{top?.mastered ?? '·'}</b>
+          <span>已掌握</span>
+        </div>
+        <div className="metric">
+          <b>{top?.cards ?? '·'}</b>
+          <span>词卡总数</span>
+        </div>
+      </div>
+
+      <div className="book-grid" style={{ marginTop: 18 }}>
         {WORD_BOOKS.map((b) => {
           const p = progress[b.key]
           const total = { cet4: 4544, cet6: 3991, freq: 4544, basic: 3911 }[b.key]
           const pct = p && p.cards > 0 ? Math.round((p.learned / p.cards) * 100) : 0
           const done = p ? p.cards >= total : false
+          const canStudy = !!p && p.cards > 0
           return (
-            <div className="book-card" key={b.key}>
-              <div className="book-name">{b.name}</div>
+            <div
+              className={`book-card${canStudy ? ' is-ready' : ''}`}
+              key={b.key}
+              onClick={() => canStudy && nav(`/vocab/${b.key}`)}
+              title={canStudy ? '点击开始学习' : undefined}
+            >
+              <div className="book-name-row">
+                <div className="book-name">{b.name}</div>
+                {canStudy && <span className="book-pct">{pct}%</span>}
+              </div>
               <div className="book-desc">{b.desc} · {total} 词</div>
               {p && p.cards > 0 && (
                 <>
