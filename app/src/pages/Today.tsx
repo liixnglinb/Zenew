@@ -2,7 +2,7 @@
 // 计划卡支持拖动排序（顺序本地持久化），全部数据来自本地库（只统计词书单词卡）。
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, Bell, BookOpen, GripVertical, MoreHorizontal, Play, RefreshCw, Search, TrendingUp } from 'lucide-react'
+import { BarChart3, Bell, BookOpen, ChevronRight, GripVertical, MoreHorizontal, Play, RefreshCw, Search, TrendingUp } from 'lucide-react'
 import { getDb, loadSession } from '../db'
 import { WORD_BOOKS } from '../vocab'
 import { getPlan, getSettings, loadHomeStats, WORDS_PER_GROUP, loadStreak, estimateMinutes, type HomeStats } from '../study'
@@ -274,6 +274,26 @@ export default function Today() {
 
   return (
     <div className="page-in">
+      {/* 新用户首启引导：还没学过词时显示，学过第 1 组后自动消失 */}
+      {(stats?.learned ?? 0) === 0 && (
+        <Card className="fade-up" style={{ marginBottom: 'var(--sp-3)' }}>
+          <div className="inline" style={{ gap: 'var(--sp-2)' }}>
+            <span className="row-title">三步开始</span>
+            <Button variant="outline" size="sm" onClick={() => nav('/vocab')}>
+              ① 选词书
+            </Button>
+            <ChevronRight size={14} aria-hidden style={{ color: 'var(--ink-3)' }} />
+            <Button variant="outline" size="sm" onClick={() => nav('/vocab')}>
+              ② 导入 300 词
+            </Button>
+            <ChevronRight size={14} aria-hidden style={{ color: 'var(--ink-3)' }} />
+            <Button variant="primary" size="sm" onClick={() => nav(book ? `/vocab/${book.key}` : '/vocab/cet4')}>
+              ③ 开始第 1 组
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* 桌面概览：3 张指标卡 + 最近学习的词 */}
       <section className="hm-home">
         <div className="hm-stats">

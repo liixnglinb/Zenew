@@ -65,7 +65,7 @@
 }
 .sidenav-brand-text { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
 .sidenav-brand-text b { font-size: var(--fs-md); font-weight: var(--fw-black); letter-spacing: -.02em; color: var(--ink-1); }
-.sidenav-brand-text small { font-family: var(--mono); font-size: 9px; letter-spacing: .18em; color: var(--brand); }
+.sidenav-brand-text small { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; color: var(--brand); }
 .sidenav-list { list-style: none; display: flex; flex-direction: column; gap: 3px; flex: 1; min-height: 0; overflow-y: auto; }
 .sidenav-item {
   position: relative; display: flex; align-items: center; gap: var(--sp-3);
@@ -86,7 +86,7 @@
 .sidenav-item.is-active { padding-left: calc(var(--sp-3) + 7px); }
 .sidenav-label { flex: 1; min-width: 0; }
 .sidenav-key {
-  font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
   background: var(--n-1); border-radius: 6px; padding: 1px 5px;
   box-shadow: inset 0 0 0 1px var(--hairline);
 }
@@ -180,7 +180,8 @@
   opacity: 0; pointer-events: none; z-index: 130;
   transition: opacity var(--dur-fast), transform var(--dur-fast);
 }
-[data-tip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (hover: none) { [data-tip]::after { display: none; } }
 
 /* ---------- 窄窗口：侧栏自动收成图标列 ---------- */

@@ -49,7 +49,8 @@ interface Confetti {
   delay: number
 }
 
-const CONFETTI_COLORS = ['#94D7CF', '#245EF0', '#FFD166', '#FF8A3D', '#7A5CFF', '#FFFFFF']
+// v6 品牌色系（--mint-hi / --brand / --amber-hi / --amber / --brand-hi），保持庆祝多色效果
+const CONFETTI_COLORS = ['#2ED0B4', '#3A63E0', '#FFBB55', '#FF9F1C', '#476FD8', '#FFFFFF']
 
 export default function ReviewSession({ initialQueue }: { initialQueue?: QueueItem[] }) {
   const nav = useNavigate()

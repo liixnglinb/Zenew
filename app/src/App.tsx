@@ -7,7 +7,6 @@ import {
   Home,
   Info,
   Keyboard,
-  Languages,
   ListChecks,
   Moon,
   Search,
@@ -21,7 +20,7 @@ import {
 import { ApiError, fetchMe, getToken, setToken, type Me } from './api'
 import { isTauri, ensureSchema } from './db'
 import { todayActivity, applySettings, getSettings, loadStreak } from './study'
-import { LANGS, applyDirection, getLang, setLang } from './lib/i18n'
+import { applyDirection, getLang } from './lib/i18n'
 import { formatNumber } from './lib/format'
 import {
   Button,
@@ -82,7 +81,6 @@ function Shell({ meEmail }: { meEmail: string }) {
   const [drawer, setDrawer] = useState(false)
   const [streak, setStreak] = useState(0)
   const [points, setPoints] = useState(0)
-  const [lang, setLangState] = useState(getLang())
   const [navCollapsed, setNavCollapsed] = useState(loadNavCollapsed())
   const [helpOpen, setHelpOpen] = useState(false)
 
@@ -136,10 +134,6 @@ function Shell({ meEmail }: { meEmail: string }) {
     setDrawer(false)
   }, [immersive, location.pathname, refreshBadges])
 
-  useEffect(() => {
-    applyDirection(lang)
-  }, [lang])
-
   return (
     <div className="app">
       <a className="sr-only" href="#main-content">
@@ -188,21 +182,12 @@ function Shell({ meEmail }: { meEmail: string }) {
                 <IconButton label="查词（Ctrl+K）" onClick={() => nav('/dict')}>
                   <Search size={17} />
                 </IconButton>
-                <IconButton label="复习统计（Ctrl+5）" onClick={() => nav('/stats')}>
-                  <BarChart3 size={17} />
-                </IconButton>
-                <IconButton label="每日任务（Ctrl+6）" onClick={() => nav('/tasks')}>
-                  <ListChecks size={17} />
-                </IconButton>
-                <IconButton label="学习排行榜（Ctrl+7）" onClick={() => nav('/rank')}>
-                  <Trophy size={17} />
-                </IconButton>
                 <span className="appbar-sep" aria-hidden />
-                <IconButton label="键盘快捷键（Ctrl+/）" onClick={() => setHelpOpen(true)}>
-                  <Keyboard size={17} />
-                </IconButton>
                 <IconButton label={resolved === 'dark' ? '切换到浅色主题' : '切换到深色主题'} onClick={toggle}>
                   {resolved === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+                </IconButton>
+                <IconButton label="键盘快捷键（Ctrl+/）" onClick={() => setHelpOpen(true)}>
+                  <Keyboard size={17} />
                 </IconButton>
                 <IconButton label="设置（Ctrl+8）" onClick={() => nav('/settings')}>
                   <Settings size={17} />
@@ -276,20 +261,7 @@ function Shell({ meEmail }: { meEmail: string }) {
             ]}
           />
         </div>
-        <div className="drawer-item" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch', gap: 'var(--sp-2)' }}>
-          <span className="inline text-2" style={{ fontSize: 'var(--fs-sm)' }}>
-            <Languages size={14} aria-hidden /> 语言
-          </span>
-          <Segmented
-            ariaLabel="界面语言"
-            value={lang}
-            onChange={(v) => {
-              setLang(v)
-              setLangState(v)
-            }}
-            options={LANGS.map((l) => ({ value: l.value, label: l.label }))}
-          />
-        </div>
+        {/* 语言切换已隐藏：界面文案尚未完成英文翻译（i18n.ts 保留） */}
         <div className="drawer-divider" />
         <div className="drawer-item" style={{ cursor: 'default', gap: 'var(--sp-2)' }}>
           <Info size={15} aria-hidden />

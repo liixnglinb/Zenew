@@ -383,7 +383,13 @@ export default function WordList() {
                   <b className="wl-row-word">{w.front}</b>
                   {starred.includes(w.id) && <Star size={12} className="wl-row-star" fill="currentColor" aria-label="已收藏" />}
                   {w.suspended === 1 && <Tag tone="neutral">已斩</Tag>}
-                  <span className="wl-row-due">{due.text}</span>
+                  {/* 逾期弱提示：珊瑚色改中性、不加粗（文案保留，统计页警示不受影响） */}
+                  <span
+                    className="wl-row-due"
+                    style={due.tone === 'over' ? { color: 'var(--ink-3)', fontWeight: 'var(--fw-regular)' } : undefined}
+                  >
+                    {due.text}
+                  </span>
                 </span>
                 {!hideMeaning && (
                   <span className="wl-row-mean">{first ? `${first.p ? first.p + '. ' : ''}${first.t}` : '（无释义数据）'}</span>

@@ -119,7 +119,7 @@ export function wordVisual(word: string): { from: string; to: string; glyph: str
 
 export function avatarVisual(seed: string): { from: string; to: string; initial: string } {
   const pairs: [string, string][] = [
-    ['#245EF0', '#5C8CFF'],
+    ['#3A63E0', '#476FD8'],
     ['#2AA391', '#6BD3C4'],
     ['#FF8A3D', '#FFB020'],
     ['#7A5CFF', '#A88BFF'],

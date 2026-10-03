@@ -7,6 +7,7 @@ import { getDb } from '../db'
 import { WORD_BOOKS, vocabCourseStats } from '../vocab'
 import { getPlan, savePlan, WORDS_PER_GROUP, estimateMinutes } from '../study'
 import { formatDate, formatNumber } from '../lib/format'
+import '../home.css'
 import {
   Button,
   Card,
@@ -25,11 +26,49 @@ import {
 } from '../ui'
 
 const BOOK_TOTALS: Record<string, number> = { cet4: 4544, cet6: 3991, freq: 4544, basic: 3911 }
-const COVERS: Record<string, string> = {
-  cet4: 'linear-gradient(140deg, #2FC08A, #12885F)',
-  cet6: 'linear-gradient(140deg, #F2705F, #C93A34)',
-  freq: 'linear-gradient(140deg, #4C7DF7, #1B47C4)',
-  basic: 'linear-gradient(140deg, #FFB020, #E07B39)',
+/* 低饱和渐变 + 按 key 固定的一种几何纹样（纯 CSS/SVG 绘制，不用图片） */
+const PATTERN_RING =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='52'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.1'%3E%3Ccircle cx='26' cy='26' r='7' stroke-width='1.3'/%3E%3Ccircle cx='26' cy='26' r='15' stroke-width='1.1'/%3E%3Ccircle cx='26' cy='26' r='23' stroke-width='.9'/%3E%3C/g%3E%3C/svg%3E\")"
+const PATTERN_WAVE =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cg stroke='%23fff' stroke-opacity='.1' stroke-width='1.1' fill='none'%3E%3Cpath d='M-2 18 L18 -2 M4 22 L22 4'/%3E%3C/g%3E%3C/svg%3E\")"
+const PATTERN_DOT =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cg fill='%23fff' fill-opacity='.11'%3E%3Ccircle cx='3' cy='3' r='1.3'/%3E%3Ccircle cx='10' cy='10' r='1'/%3E%3C/g%3E%3C/svg%3E\")"
+
+interface CoverSpec {
+  from: string
+  to: string
+  tag: string
+  sub: string
+  pattern: string
+}
+
+const COVERS: Record<string, CoverSpec> = {
+  cet4: { from: '#2AAF8E', to: '#1B7A66', tag: 'CET-4', sub: '四级', pattern: PATTERN_RING },
+  cet6: { from: '#D9705F', to: '#A6453C', tag: 'CET-6', sub: '六级', pattern: PATTERN_WAVE },
+  freq: { from: '#5478CF', to: '#33509B', tag: 'FREQ', sub: '高频', pattern: PATTERN_DOT },
+  basic: { from: '#DDA347', to: '#AF7530', tag: 'BASIC', sub: '基础', pattern: PATTERN_RING },
+  notebook: { from: '#8875CE', to: '#5F4AA6', tag: 'MY', sub: '生词本', pattern: PATTERN_WAVE },
+  book: { from: '#5478CF', to: '#33509B', tag: 'BOOK', sub: '词书', pattern: PATTERN_DOT },
+}
+
+/** 56×76 程序化书封：左缘书脊 + 1px 高光 + 纹样 + 上下两排文字（哑光，无塑料反光） */
+function BookCover({ bookKey }: { bookKey: string }) {
+  const c = COVERS[bookKey] || COVERS.book
+  return (
+    <div
+      className="book-cover"
+      style={{
+        backgroundImage: `${c.pattern}, linear-gradient(146deg, ${c.from}, ${c.to})`,
+        backgroundSize: 'auto, 100% 100%',
+        backgroundPosition: '50% 34%, 0 0',
+        backgroundRepeat: 'repeat, no-repeat',
+      }}
+      aria-hidden
+    >
+      <b>{c.tag}</b>
+      <span>{c.sub}</span>
+    </div>
+  )
 }
 
 interface PlanRow extends Record<string, unknown> {
@@ -180,10 +219,7 @@ export default function Plan() {
         <>
           <Card>
             <div className="inline" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 'var(--sp-3)' }}>
-              <div className="book-cover" style={{ background: COVERS[book.key] || COVERS.cet4 }} aria-hidden>
-                <b>{(book.key || 'BOOK').toUpperCase()}</b>
-                <span>{book.name.slice(-2)}</span>
-              </div>
+              <BookCover bookKey={book.key} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="inline" style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
                   <span className="row-title truncate" title={book.name}>
