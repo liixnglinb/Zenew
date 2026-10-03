@@ -57,6 +57,8 @@ import Dict from './pages/Dict'
 import Plan from './pages/Plan'
 import Tasks from './pages/Tasks'
 import Rank from './pages/Rank'
+import WordList from './pages/WordList'
+import Train from './pages/Train'
 
 /** 一级导航已由左侧固定侧栏承担（见 ui/sidebar.tsx 的 NAV_ITEMS） */
 
@@ -218,6 +220,8 @@ function Shell({ meEmail }: { meEmail: string }) {
                   <Route path="/today" element={<Today />} />
                   <Route path="/vocab" element={<Vocab />} />
                   <Route path="/vocab/:key" element={<VocabStudy />} />
+                  <Route path="/vocab/:key/words" element={<WordList />} />
+                  <Route path="/vocab/:key/train/:mode" element={<Train />} />
                   <Route path="/plan/:key" element={<Plan />} />
                   <Route path="/dict" element={<Dict />} />
                   <Route path="/review" element={<ReviewSession />} />

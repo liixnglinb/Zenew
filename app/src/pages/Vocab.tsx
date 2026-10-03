@@ -484,6 +484,14 @@ export default function Vocab() {
                                 >
                                   计划
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  icon={<Library size={13} aria-hidden />}
+                                  onClick={() => nav(`/vocab/${b.key}/words`)}
+                                >
+                                  单词列表
+                                </Button>
                               </>
                             )}
                           </div>

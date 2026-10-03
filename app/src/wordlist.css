@@ -1,0 +1,682 @@
+/* ============================================================
+   单词列表页（WordList / WordDetailPanel）专用样式
+   ------------------------------------------------------------
+   仅由 src/pages/WordList.tsx import；全部使用 index.css 的设计令牌，
+   [data-theme="dark"] 下由令牌自动反转，个别需要额外的用主题选择器补充。
+   加载顺序：index.css → desktop.css → wordlist.css（本文件最后，负责本页局部覆盖）
+   ============================================================ */
+
+/* ---------- 页面容器：给底部训练坞留出空间 ---------- */
+.wl-page {
+  position: relative;
+  /* 保证内容少时训练坞也能停在底部（sticky 需要一个足够高的滚动容器） */
+  min-height: max(560px, calc(100vh - 260px));
+  padding-bottom: calc(var(--sp-7) + 76px);
+}
+
+/* ---------- 筛选页签（chip，aria-pressed 语义） ---------- */
+.wl-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.wl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--sp-4);
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+  transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base);
+}
+.wl-chip b {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  color: var(--ink-3);
+}
+.wl-chip:hover {
+  color: var(--brand);
+  transform: translateY(-1.5px);
+  box-shadow: var(--sh-2);
+}
+.wl-chip.is-active {
+  background: linear-gradient(140deg, var(--brand), var(--brand-hi));
+  color: #fff;
+  box-shadow: var(--sh-brand);
+}
+.wl-chip.is-active b {
+  color: rgba(255, 255, 255, .86);
+}
+
+/* ---------- 工具行：共 N 词 + 排序 + 搜索 + 只看逾期 ---------- */
+.wl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-3);
+}
+.wl-count {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.wl-count b {
+  font-size: var(--fs-md);
+  color: var(--ink-1);
+}
+.wl-count-sub {
+  color: var(--ink-3);
+  font-style: normal;
+  font-size: var(--fs-xs);
+}
+.wl-sort {
+  display: inline-flex;
+  align-items: center;
+}
+.wl-sort .input {
+  width: auto;
+  min-height: 38px;
+  padding-right: var(--sp-6);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-2);
+  border-radius: var(--r-pill);
+  appearance: none;
+  cursor: pointer;
+  /* 自绘下拉箭头（避免各平台原生外观差异） */
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 17px, calc(100% - 12px) 17px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.wl-search {
+  flex: 1;
+  min-width: 200px;
+}
+.wl-search .input {
+  min-height: 38px;
+  border-radius: var(--r-pill);
+}
+.wl-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 38px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.wl-toggle:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.wl-toggle-track {
+  width: 36px;
+  height: 21px;
+  flex-shrink: 0;
+  border-radius: var(--r-pill);
+  background: var(--n-4);
+  position: relative;
+  transition: background var(--dur-base) var(--ease);
+  box-shadow: inset 0 1px 3px rgba(18, 33, 47, .14);
+}
+.wl-toggle-track i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(18, 33, 47, .3);
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+.wl-toggle.is-on {
+  color: var(--brand);
+}
+.wl-toggle.is-on .wl-toggle-track {
+  background: linear-gradient(140deg, var(--brand), var(--brand-hi));
+}
+.wl-toggle.is-on .wl-toggle-track i {
+  transform: translateX(15px);
+}
+
+/* ---------- 列表列 ---------- */
+.wl-list {
+  padding: var(--sp-2);
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.wl-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wl-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  text-align: start;
+  padding: 9px var(--sp-3) 8px var(--sp-4);
+  border: none;
+  background: transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
+}
+.wl-row:hover {
+  background: var(--n-1);
+}
+.wl-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  transition: background var(--dur-fast);
+}
+.wl-row.is-selected {
+  background: var(--brand-soft);
+}
+.wl-row.is-selected::before {
+  background: var(--brand);
+}
+.wl-row.is-cut .wl-row-word {
+  text-decoration: line-through;
+  opacity: .72;
+}
+.wl-row.is-cut {
+  opacity: .82;
+}
+
+/* 5 点记忆状态条（点亮 state 颗） */
+.wl-dots {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+  width: 33px;
+}
+.wl-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.wl-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wl-row-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.wl-row-word {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wl-row-star {
+  color: var(--amber);
+  flex-shrink: 0;
+}
+/* 到期 / 逾期 / 未学习（着色取自 --wl-due，由行内 style 注入） */
+.wl-row-due {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--wl-due, var(--ink-3));
+  white-space: nowrap;
+}
+.wl-row-mean {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  line-height: var(--lh-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 按 state 着色的细进度条 */
+.wl-track {
+  display: block;
+  height: 3px;
+  margin-top: 2px;
+  border-radius: var(--r-pill);
+  background: var(--n-2);
+  overflow: hidden;
+}
+.wl-track > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.wl-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0 var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* ---------- 详情面板 ---------- */
+.wl-detail {
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  animation: fadeUp var(--dur-base) var(--ease-out) both;
+}
+.wl-detail-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--n-1);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.wl-detail-back:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.wl-detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.wl-detail-main {
+  flex: 1;
+  min-width: 0;
+}
+.wl-detail-word {
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-black);
+  letter-spacing: -.03em;
+  color: var(--ink-1);
+  line-height: var(--lh-tight);
+  overflow-wrap: anywhere;
+}
+.wl-phones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.wl-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--n-1);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+}
+.wl-phone:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.wl-phone-tag {
+  font-family: var(--font);
+  font-weight: var(--fw-bold);
+  color: var(--brand);
+}
+.wl-phone-tag.is-uk {
+  color: var(--mint-deep);
+}
+.wl-detail-ops {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.wl-detail-ops .icon-btn.is-starred {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+/* 记忆概览 */
+.wl-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--n-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.wl-meta-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+.wl-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wl-fact-k {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  font-weight: var(--fw-semibold);
+}
+.wl-fact b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-sm);
+  color: var(--ink-1);
+}
+.wl-visual {
+  height: 108px;
+  border-radius: var(--r-md);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .5);
+}
+.wl-visual-glyph {
+  font-size: 3.4rem;
+  font-weight: var(--fw-black);
+  line-height: 1;
+  color: rgba(18, 33, 47, .34);
+}
+.wl-visual-caption {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-2);
+  font-family: var(--mono);
+  font-size: var(--fs-micro);
+  letter-spacing: .08em;
+  color: rgba(18, 33, 47, .5);
+}
+.wl-statebar {
+  display: flex;
+  gap: 5px;
+}
+.wl-statebar i {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--n-3);
+}
+.wl-mastery-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  margin-bottom: 4px;
+}
+.wl-mastery-line b {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+.wl-mastery .wl-track {
+  height: 6px;
+  margin-top: 0;
+}
+
+/* 释义 / 例句 */
+.wl-block-title {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-3);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  margin-bottom: var(--sp-2);
+}
+.wl-senses {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.wl-senses li {
+  display: flex;
+  gap: 7px;
+  font-size: var(--fs-base);
+  color: var(--ink);
+  line-height: var(--lh-snug);
+}
+.wl-pos {
+  font-style: normal;
+  font-weight: var(--fw-bold);
+  color: var(--brand);
+  flex-shrink: 0;
+  min-width: 26px;
+}
+.wl-sentences {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.wl-sentences li {
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--n-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.wl-sent-en {
+  font-size: var(--fs-base);
+  color: var(--ink);
+  line-height: var(--lh-snug);
+}
+.wl-sent-en em {
+  font-style: normal;
+  font-weight: var(--fw-bold);
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+.wl-sent-cn {
+  margin-top: 4px;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  line-height: var(--lh-snug);
+}
+.wl-nav {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: auto;
+}
+.wl-nav .btn {
+  flex: 1;
+}
+
+/* ---------- 训练坞：毛玻璃胶囊条（固定在内容区底部居中） ---------- */
+.wl-dockwrap {
+  position: sticky;
+  bottom: var(--sp-4);
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  margin-top: var(--sp-5);
+  pointer-events: none;
+}
+.wl-dock {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  max-width: 100%;
+  padding: 7px 9px;
+  border-radius: var(--r-pill);
+  background: var(--glass-strong);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--sh-3), inset 0 0 0 1px var(--glass-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.wl-dock::-webkit-scrollbar {
+  display: none;
+}
+.wl-dock-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px var(--sp-4);
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  transition: color var(--dur-base) var(--ease), background var(--dur-base) var(--ease), transform var(--dur-base) var(--ease-spring);
+}
+.wl-dock-item svg {
+  stroke-width: 1.9;
+  flex-shrink: 0;
+}
+.wl-dock-item:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+  transform: translateY(-1.5px);
+}
+.wl-dock-item.is-active {
+  color: #fff;
+  background: linear-gradient(140deg, var(--brand), var(--brand-hi));
+  box-shadow: var(--sh-brand);
+}
+
+/* ---------- 窄窗口：详情改单栏覆盖视图 ---------- */
+.wl-drawer {
+  display: none;
+}
+@media (max-width: 1179px) {
+  .wl-list {
+    max-height: none;
+    overflow: visible;
+  }
+  .wl-drawer.is-open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    overflow-y: auto;
+    background: var(--paper);
+    padding: var(--sp-5) var(--gutter) var(--dock-space);
+    animation: fadeUp var(--dur-base) var(--ease-out) both;
+  }
+  .wl-drawer.is-open .wl-detail {
+    max-width: var(--container);
+    margin: 0 auto;
+  }
+  /* 单栏详情打开时，训练坞让位，避免盖住面板底部 */
+  .wl-page:has(.wl-drawer.is-open) .wl-dockwrap {
+    display: none;
+  }
+}
+
+/* ---------- 深色主题补充覆盖 ---------- */
+[data-theme="dark"] .wl-visual {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+[data-theme="dark"] .wl-visual-glyph {
+  color: rgba(255, 255, 255, .34);
+}
+[data-theme="dark"] .wl-visual-caption {
+  color: rgba(255, 255, 255, .58);
+}
+[data-theme="dark"] .wl-list {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+[data-theme="dark"] .wl-chip {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+[data-theme="dark"] .wl-chip.is-active {
+  box-shadow: var(--sh-brand);
+}
+[data-theme="dark"] .wl-sort .input {
+  background-color: var(--n-1);
+}
+[data-theme="dark"] .wl-row:hover {
+  background: var(--n-2);
+}
+[data-theme="dark"] .wl-dock {
+  background: var(--glass-strong);
+}
+
+/* ---------- 桌面密度：一屏更多单词 ---------- */
+@media (min-width: 1101px) {
+  .wl-row {
+    padding: 7px var(--sp-3) 6px var(--sp-4);
+  }
+  .wl-list {
+    padding: var(--sp-2);
+  }
+}
+
+/* ---------- 窄屏：工具行换行，行内释义收窄 ---------- */
+@media (max-width: 640px) {
+  .wl-toolbar {
+    gap: var(--sp-2);
+  }
+  .wl-search {
+    min-width: 100%;
+    order: 3;
+  }
+  .wl-row-due {
+    font-size: var(--fs-micro);
+  }
+  .wl-dock {
+    gap: 2px;
+    padding: 6px;
+  }
+  .wl-dock-item {
+    padding: 7px 10px;
+    font-size: var(--fs-xs);
+  }
+}
+
+/* ---------- 动效弱化偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .wl-row,
+  .wl-chip,
+  .wl-dock-item,
+  .wl-track > i,
+  .wl-toggle-track i {
+    transition: none;
+  }
+}

@@ -300,6 +300,51 @@ export async function loadQueueByIds(cardIds: number[]): Promise<QueueItem[]> {
   return cardIds.map((id) => byId.get(id)).filter((x): x is QueueItem => !!x)
 }
 
+/** 单词列表页行数据：一张单词卡 + 它的记忆状态（未学习时 card_state 无行） */
+export interface BookWordRow {
+  id: number
+  front: string
+  back: string
+  due: string | null
+  state: number
+  reps: number
+  lapses: number
+  suspended: number
+  last_review: string | null
+}
+
+/**
+ * 取某本词书的全部单词卡（单词列表页用）。
+ * 口径与队列 / 统计一致：co.kind='vocab' AND c.type='word'。
+ * card_state 允许缺行（未学习的新词）：LEFT JOIN，state 默认 0、due 为 NULL。
+ * 按 card.id 升序返回（即词书默认顺序，导入顺序稳定）；排序由页面负责。
+ */
+export async function loadBookWords(courseName: string): Promise<BookWordRow[]> {
+  const db = await getDb()
+  const rows = await db.select<Record<string, unknown>[]>(
+    `SELECT c.id, c.front, c.back, c.suspended,
+            cs.due, cs.state, cs.reps, cs.lapses, cs.last_review
+     FROM card c
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     LEFT JOIN card_state cs ON cs.card_id = c.id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND co.name = ?
+     ORDER BY c.id ASC`,
+    [courseName]
+  )
+  return rows.map((r) => ({
+    id: r.id as number,
+    front: r.front as string,
+    back: r.back as string,
+    due: (r.due as string | null) ?? null,
+    state: Number(r.state ?? 0),
+    reps: Number(r.reps ?? 0),
+    lapses: Number(r.lapses ?? 0),
+    suspended: Number(r.suspended ?? 0),
+    last_review: (r.last_review as string | null) ?? null,
+  }))
+}
+
 /** 按词书名取队列（词书「专学本书」）：到期卡 + 新卡，混排规则与 loadQueue 一致 */
 export async function loadQueueByCourse(courseName: string, nowIsoStr: string, newLimit = 10): Promise<QueueItem[]> {
   const db = await getDb()
