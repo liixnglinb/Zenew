@@ -89,7 +89,6 @@ function Shell({ meEmail }: { meEmail: string }) {
 
   // 沉浸页（学习会话）隐藏顶栏与底部导航
   const immersive = location.pathname.startsWith('/review') || /^\/vocab\/[^/]+$/.test(location.pathname)
-  const onHome = location.pathname === '/today'
 
   const refreshBadges = useCallback(() => {
     loadStreak().then(setStreak).catch(() => {})
@@ -138,48 +137,28 @@ function Shell({ meEmail }: { meEmail: string }) {
             </button>
           </div>
           <div className="appbar-spacer" />
-          <IconButton label={resolved === 'dark' ? '切换到浅色主题' : '切换到深色主题'} onClick={toggle}>
-            {resolved === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-          </IconButton>
-          <IconButton label="复习统计" onClick={() => nav('/stats')}>
-            <BarChart3 size={17} />
-          </IconButton>
-          <IconButton label="查词" onClick={() => nav('/dict')}>
-            <Search size={17} />
-          </IconButton>
-          <IconButton label="设置" onClick={() => nav('/settings')}>
-            <Settings size={17} />
-          </IconButton>
+          <div className="appbar-icons">
+            <IconButton label="查词" onClick={() => nav('/dict')}>
+              <Search size={17} />
+            </IconButton>
+            <IconButton label="复习统计" onClick={() => nav('/stats')}>
+              <BarChart3 size={17} />
+            </IconButton>
+            <IconButton label="每日任务" onClick={() => nav('/tasks')}>
+              <ListChecks size={17} />
+            </IconButton>
+            <IconButton label="学习排行榜" onClick={() => nav('/rank')}>
+              <Trophy size={17} />
+            </IconButton>
+            <span className="appbar-sep" aria-hidden />
+            <IconButton label={resolved === 'dark' ? '切换到浅色主题' : '切换到深色主题'} onClick={toggle}>
+              {resolved === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </IconButton>
+            <IconButton label="设置" onClick={() => nav('/settings')}>
+              <Settings size={17} />
+            </IconButton>
+          </div>
         </header>
-      )}
-
-      {!immersive && onHome && (
-        <>
-          <aside className="fabrail fabrail-left" aria-label="快捷入口">
-            <button className="fab" onClick={() => nav('/tasks')} title="每日任务">
-              <ListChecks size={19} aria-hidden />
-              任务
-            </button>
-            <button className="fab" onClick={() => nav('/rank')} title="学习排行榜">
-              <Trophy size={19} aria-hidden />
-              排行榜
-            </button>
-          </aside>
-          <aside className="fabrail" aria-label="快捷入口">
-            <button className="fab" onClick={() => nav('/dict')} title="查词">
-              <Search size={19} aria-hidden />
-              查词
-            </button>
-            <button className="fab" onClick={() => nav('/vocab')} title="词库">
-              <BookOpen size={19} aria-hidden />
-              词书
-            </button>
-            <button className="fab" onClick={() => nav('/courses')} title="课程">
-              <GraduationCap size={19} aria-hidden />
-              课程
-            </button>
-          </aside>
-        </>
       )}
 
       <main className="appbody" id="main-content" tabIndex={-1}>

@@ -448,7 +448,7 @@ export default function Vocab() {
                             </div>
                           )}
 
-                          <div className="inline" style={{ gap: 'var(--sp-2)', marginTop: 'var(--sp-3)' }}>
+                          <div className="book-actions">
                             {!done && (
                               <Button
                                 size="sm"

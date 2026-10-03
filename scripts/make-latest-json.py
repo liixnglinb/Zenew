@@ -3,7 +3,7 @@
 import json, io, os, sys, datetime, shutil, hashlib
 
 Z = r"C:\Users\李星历\Desktop\课程学习软件\Zenew"
-VERSION = "0.15.0"
+VERSION = json.load(io.open(os.path.join(Z, "app", "src-tauri", "tauri.conf.json"), encoding="utf-8"))["version"]
 TAG = f"v{VERSION}"
 REPO = "liixnglinb/Zenew"
 

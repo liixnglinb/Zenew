@@ -19,8 +19,8 @@ import {
 import { getDb, loadSession } from '../db'
 import { daysUntil } from './Exams'
 import { WORD_BOOKS } from '../vocab'
-import { getPlan, getSettings, loadHomeStats, WORDS_PER_GROUP, loadStreak, type HomeStats } from '../study'
-import { formatNumber } from '../lib/format'
+import { getPlan, getSettings, loadHomeStats, WORDS_PER_GROUP, loadStreak, estimateMinutes, type HomeStats } from '../study'
+import { formatNumber, formatPercent } from '../lib/format'
 import {
   Button,
   Card,
@@ -28,7 +28,6 @@ import {
   ErrorState,
   IconButton,
   LoadingState,
-  Progress,
   Tag,
   useAsync,
   useToast,
@@ -43,48 +42,153 @@ interface BookRow {
   due: number
 }
 
+/** 记忆状态分档：刚学（亮）· 巩固中 · 待复习（灰） */
+type CloudTier = 'new' | 'solid' | 'due'
+
 interface CloudWord {
   text: string
   size: number
   delay: number
-  fresh: boolean
-  /** 垂直抖动（px）：让流式排布看起来仍是"云"而不是表格 */
-  shift: number
+  tier: CloudTier
+  /** 词云内绝对定位（px） */
+  x: number
+  y: number
+  /** 外框尺寸（用于避让计算） */
+  bw: number
+  bh: number
+  /** 中心点（用于绘制连线） */
+  cx: number
+  cy: number
+}
+
+interface Link2D {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
 }
 
 interface HomeData {
   books: BookRow[]
   stats: HomeStats
-  words: { w: string; fresh: boolean }[]
+  words: { w: string; tier: CloudTier }[]
   exam: { title: string; days: number } | null
   resume: { idx: number; total: number } | null
 }
 
+/** 内置词书封面（与词库页一致） */
+const COVERS: Record<string, { bg: string; tag: string; sub: string }> = {
+  cet4: { bg: 'linear-gradient(140deg, #2FC08A, #12885F)', tag: 'CET-4', sub: '四级' },
+  cet6: { bg: 'linear-gradient(140deg, #F2705F, #C93A34)', tag: 'CET-6', sub: '六级' },
+  freq: { bg: 'linear-gradient(140deg, #4C7DF7, #1B47C4)', tag: 'FREQ', sub: '高频' },
+  basic: { bg: 'linear-gradient(140deg, #FFB020, #E07B39)', tag: 'BASIC', sub: '基础' },
+  notebook: { bg: 'linear-gradient(140deg, #7C5CFF, #5436D6)', tag: 'MY', sub: '生词本' },
+}
+const DEFAULT_COVER = { bg: 'linear-gradient(140deg, #4C7DF7, #1B47C4)', tag: 'BOOK', sub: '词书' }
+
 const ORDER_KEY = 'zenew_book_order'
 
-function hash(s: string, salt = 0): number {
-  let h = 2166136261 ^ salt
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return Math.abs(h)
+/** 各档基础字号（长词自动降号，避免长词挤压） */
+const TIER_SIZE: Record<CloudTier, number> = { new: 32, solid: 25, due: 20 }
+
+/** 词的稳定指纹：让同一档内也有大小节奏，云看起来才"活" */
+function wordSeed(s: string): number {
+  let h = 7
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100003
+  return h
 }
 
-/** 词云布局：流式排布（flex-wrap），字号按词长自适应，长词不再相互压字 */
-function layoutCloud(words: { w: string; fresh: boolean }[]): CloudWord[] {
-  return words.map((it, i) => {
-    const h = hash(it.w, 41)
-    const len = it.w.length
-    const base = len <= 4 ? 28 : len <= 6 ? 24 : len <= 8 ? 20 : len <= 11 ? 17 : 15
-    return {
-      text: it.w,
-      size: base + (h % 3) * 2 + (it.fresh ? 2 : 0),
-      delay: (i % 7) * 0.35,
-      fresh: it.fresh,
-      shift: (h % 13) - 6,
+/**
+ * 知识云布局：从中心螺旋外扩，逐词避让已占位区域 —— 保证任何词都不会互相压字。
+ * 同时记录中心点，供 SVG 连线画出"知识星图"的感觉。
+ */
+function layoutCloud(words: { w: string; tier: CloudTier }[], box: { w: number; h: number }): CloudWord[] {
+  const W = box.w || 660
+  const H = box.h || 250
+  const pad = 10
+  const gapX = 14
+  const gapY = 10
+
+  const items = words
+    .map((it, i) => {
+      const len = it.w.length
+      const seed = wordSeed(it.w)
+      const size = Math.max(
+        13,
+        TIER_SIZE[it.tier] - (len > 11 ? 5 : len > 8 ? 3 : len > 6 ? 1 : 0) + (seed % 5) - 2
+      )
+      return {
+        text: it.w,
+        tier: it.tier,
+        size,
+        bw: Math.max(34, len * size * 0.57),
+        bh: size * 1.28,
+        delay: (i % 7) * 0.34,
+      }
+    })
+    .sort((a, b) => b.bh - a.bh)
+
+  const placed: CloudWord[] = []
+  const cx0 = W / 2
+  const cy0 = H / 2
+  const rx = Math.max(40, (W / 2 - pad) * 0.94)
+  const ry = Math.max(24, (H / 2 - pad) * 0.94)
+  const TRIES = 3200
+
+  for (const it of items) {
+    /* 椭圆螺旋铺满整个容器；找不到空位时退让到"重叠最少"的位置，保证每个词都上云 */
+    let best: { x: number; y: number; cx: number; cy: number; overlap: number } | null = null
+    for (let t = 0; t < TRIES; t++) {
+      const ang = t * 0.42
+      const s = Math.sqrt(t / TRIES)
+      const cx = cx0 + Math.cos(ang) * s * rx
+      const cy = cy0 + Math.sin(ang) * s * ry
+      const x = cx - it.bw / 2
+      const y = cy - it.bh / 2
+      if (x < pad || y < pad || x + it.bw > W - pad || y + it.bh > H - pad) continue
+
+      let overlap = 0
+      for (const p of placed) {
+        const ox = Math.min(x + it.bw + gapX, p.x + p.bw + gapX) - Math.max(x - gapX, p.x - gapX)
+        const oy = Math.min(y + it.bh + gapY, p.y + p.bh + gapY) - Math.max(y - gapY, p.y - gapY)
+        if (ox > 0 && oy > 0) overlap += ox * oy
+      }
+      if (overlap === 0) {
+        best = { x, y, cx, cy, overlap: 0 }
+        break
+      }
+      if (!best || overlap < best.overlap) best = { x, y, cx, cy, overlap }
     }
-  })
+    if (best) {
+      placed.push({ text: it.text, tier: it.tier, size: it.size, delay: it.delay, x: best.x, y: best.y, bw: it.bw, bh: it.bh, cx: best.cx, cy: best.cy })
+    }
+  }
+  return placed
+}
+
+/** 每个词连到最近的一个词，去重后最多 16 条线 */
+function cloudLinks(cloud: CloudWord[]): Link2D[] {
+  const out: Link2D[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < cloud.length; i++) {
+    let best = -1
+    let bestD = Infinity
+    for (let j = 0; j < cloud.length; j++) {
+      if (i === j) continue
+      const d = (cloud[i].cx - cloud[j].cx) ** 2 + (cloud[i].cy - cloud[j].cy) ** 2
+      if (d < bestD) {
+        bestD = d
+        best = j
+      }
+    }
+    if (best < 0) continue
+    const key = i < best ? `${i}-${best}` : `${best}-${i}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ x1: cloud[i].cx, y1: cloud[i].cy, x2: cloud[best].cx, y2: cloud[best].cy })
+    if (out.length >= 16) break
+  }
+  return out
 }
 
 function readOrder(): string[] {
@@ -152,21 +256,28 @@ async function loadHome(): Promise<HomeData> {
     streak: await loadStreak().catch(() => 0),
   }))
 
-  let words: { w: string; fresh: boolean }[] = []
+  let words: { w: string; tier: CloudTier }[] = []
   try {
-    const learned = await db.select<{ front: string; last_review: string | null }[]>(
-      `SELECT c.front, s.last_review FROM card c JOIN card_state s ON s.card_id=c.id
+    const learned = await db.select<{ front: string; last_review: string | null; due: string | null }[]>(
+      `SELECT c.front, s.last_review, s.due FROM card c JOIN card_state s ON s.card_id=c.id
        WHERE c.suspended=0 AND s.state!=0 AND c.type='word'
        ORDER BY s.last_review DESC LIMIT 32`
     )
-    words = learned.map((r, i) => ({ w: r.front, fresh: i < 8 }))
+    const now = Date.now()
+    words = learned.map((r) => {
+      const last = r.last_review ? Date.parse(r.last_review) : NaN
+      const due = r.due ? Date.parse(r.due) : NaN
+      const ageDays = Number.isFinite(last) ? (now - last) / 86400000 : 99
+      const tier: CloudTier = Number.isFinite(due) && due <= now ? 'due' : ageDays <= 3 ? 'new' : 'solid'
+      return { w: r.front, tier }
+    })
     if (words.length < 14) {
       const topics = await db.select<{ title: string }[]>(
         'SELECT title FROM topic WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 20'
       )
       for (const t of topics) {
         if (words.length >= 20) break
-        if (t.title.length <= 12) words.push({ w: t.title, fresh: false })
+        if (t.title.length <= 12) words.push({ w: t.title, tier: 'solid' })
       }
     }
   } catch {
@@ -209,7 +320,28 @@ export default function Today() {
     if (data) setBooks(data.books)
   }, [data])
 
-  const cloud = useMemo(() => layoutCloud(data?.words ?? []), [data?.words])
+  const cloudRef = useRef<HTMLDivElement | null>(null)
+  const [cloudBox, setCloudBox] = useState({ w: 0, h: 0 })
+
+  /* 量出词云实际尺寸后再排布：窗口缩放会自动重排，永不压字 */
+  useEffect(() => {
+    const el = cloudRef.current
+    if (!el) return
+    const measure = () =>
+      setCloudBox((b) => (b.w === el.clientWidth && b.h === el.clientHeight ? b : { w: el.clientWidth, h: el.clientHeight }))
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [data])
+
+  const cloud = useMemo(() => layoutCloud(data?.words ?? [], cloudBox), [data?.words, cloudBox])
+  const links = useMemo(() => cloudLinks(cloud), [cloud])
+  const tierCount = useMemo(() => {
+    const c: Record<CloudTier, number> = { new: 0, solid: 0, due: 0 }
+    for (const w of cloud) c[w.tier] += 1
+    return c
+  }, [cloud])
   const book = books[active]
   const plan = getPlan(book?.key || 'cet4')
   const stats = data?.stats
@@ -266,12 +398,24 @@ export default function Today() {
           </div>
           <div className="home-hero-sub">{formatNumber(stats?.learned ?? 0)} WORDS IN ORBIT</div>
         </div>
-        <div className="wordcloud">
+        <div className="wordcloud" ref={cloudRef}>
+          {cloud.length > 1 && (
+            <svg
+              className="wc-line"
+              viewBox={`0 0 ${cloudBox.w || 660} ${cloudBox.h || 250}`}
+              preserveAspectRatio="none"
+              aria-hidden
+            >
+              {links.map((l, i) => (
+                <line key={i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} />
+              ))}
+            </svg>
+          )}
           {cloud.map((w) => (
             <span
               key={w.text}
-              className={`wc-word${w.fresh ? ' is-bright' : ''}`}
-              style={{ fontSize: w.size, animationDelay: `${w.delay}s`, marginTop: w.shift }}
+              className={`wc-word is-${w.tier}`}
+              style={{ left: w.x, top: w.y, fontSize: w.size, animationDelay: `${w.delay}s` }}
               title={w.text}
             >
               {w.text}
@@ -291,6 +435,19 @@ export default function Today() {
             </div>
           )}
         </div>
+        {cloud.length > 0 && (
+          <div className="cloud-legend">
+            <span className="cloud-legend-item is-new">
+              <i /> 刚学会 <b>{tierCount.new}</b>
+            </span>
+            <span className="cloud-legend-item is-solid">
+              <i /> 巩固中 <b>{tierCount.solid}</b>
+            </span>
+            <span className="cloud-legend-item is-due">
+              <i /> 待复习 <b>{tierCount.due}</b>
+            </span>
+          </div>
+        )}
       </section>
 
       {/* 考试倒计时 */}
@@ -369,10 +526,14 @@ export default function Today() {
             </span>
           </div>
           <div className="plan-head">
+            <div className="plan-cover" style={{ background: (COVERS[book.key] || DEFAULT_COVER).bg }} aria-hidden>
+              <b>{(COVERS[book.key] || DEFAULT_COVER).tag}</b>
+              <span>{(COVERS[book.key] || DEFAULT_COVER).sub}</span>
+            </div>
             <div style={{ minWidth: 0 }}>
               <div className="plan-name truncate">{book.name}</div>
-              <div className="row-meta" style={{ marginTop: 3 }}>
-                {book.desc} · 每日 {plan.groups} 组（每组 {WORDS_PER_GROUP} 词）
+              <div className="plan-head-meta">
+                {book.desc} · 每日 {plan.groups} 组
               </div>
             </div>
             <div className="plan-actions-icons">
@@ -384,23 +545,72 @@ export default function Today() {
               </IconButton>
             </div>
           </div>
-          <div className="plan-progress-row">
-            <Progress value={Math.max(2, pct)} label={`${book.name} 学习进度`} />
-            <span className="plan-count tnum">
-              {formatNumber(book.learned)}/{formatNumber(book.cards)} 词 ›
-            </span>
-          </div>
-          <div className="plan-buttons">
-            <button className="btn-plan" onClick={() => nav(`/vocab/${book.key}`)}>
-              新学
-              <span className="btn-plan-sub">
-                0/{plan.groups} 组
-              </span>
-            </button>
-            <button className="btn-plan is-ghost" onClick={() => nav('/review')}>
-              复习
-              <span className="btn-plan-sub">0/{reviewGroups} 组</span>
-            </button>
+
+          <div className={`plan-body${book.cards === 0 ? ' is-empty' : ''}`}>
+            {book.cards > 0 && (
+              <div className="ring" role="img" aria-label={`${book.name} 学习进度 ${formatPercent(pct)}`}>
+                <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden>
+                  <defs>
+                    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="var(--brand-hi)" />
+                      <stop offset="100%" stopColor="var(--brand)" />
+                    </linearGradient>
+                  </defs>
+                  <circle className="ring-track" cx="48" cy="48" r="40" fill="none" strokeWidth="9" />
+                  <circle
+                    className="ring-value"
+                    cx="48"
+                    cy="48"
+                    r="40"
+                    fill="none"
+                    strokeWidth="9"
+                    strokeDasharray={2 * Math.PI * 40}
+                    strokeDashoffset={2 * Math.PI * 40 * (1 - Math.min(1, pct / 100))}
+                  />
+                </svg>
+                <div className="ring-label">
+                  <b className="tnum">{formatPercent(pct)}</b>
+                  <span>已学进度</span>
+                </div>
+              </div>
+            )}
+
+            <div style={{ minWidth: 0 }}>
+              <div className="plan-count tnum">
+                {book.cards > 0
+                  ? `${formatNumber(book.learned)} / ${formatNumber(book.cards)} 词`
+                  : `还没有导入词卡 · ${formatNumber(book.due)} 张待复习`}
+              </div>
+              <div className="row-meta" style={{ marginTop: 4 }}>
+                今日待复习 {formatNumber(book.due)} · 每次 {WORDS_PER_GROUP} 词一组
+              </div>
+
+              <div className="plan-buttons">
+                <button className="btn-plan" onClick={() => nav(`/vocab/${book.key}`)}>
+                  新学
+                  <span className="btn-plan-sub">
+                    {plan.groups} 组 · 约 {estimateMinutes(plan.groups * WORDS_PER_GROUP)} 分钟
+                  </span>
+                </button>
+                <button className="btn-plan is-ghost" onClick={() => nav('/review')}>
+                  复习
+                  <span className="btn-plan-sub">
+                    {reviewGroups} 组 · 待复习 {formatNumber(book.due)}
+                  </span>
+                </button>
+              </div>
+
+              <div className="plan-chips">
+                {book.cards - book.learned > 0 && (
+                  <span className="chip">
+                    预计{' '}
+                    {Math.max(1, Math.ceil((book.cards - book.learned) / Math.max(1, plan.groups * WORDS_PER_GROUP)))} 天学完
+                  </span>
+                )}
+                <span className="chip">已导入 {formatNumber(book.cards)} 词</span>
+                <span className="chip">连续学习 {formatNumber(stats?.streak ?? 0)} 天</span>
+              </div>
+            </div>
           </div>
           {menu && (
             <div className="plan-menu" role="menu">
