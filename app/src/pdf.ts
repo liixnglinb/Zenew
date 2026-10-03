@@ -129,7 +129,7 @@ async function processSegment(
   counters: { topics: number; cards: number; failed: number },
   ev: PipelineEvent
 ): Promise<{ ok: boolean; quota: boolean }> {
-  // 1) 提取知识点（429 退避重试；402 上报额度耗尽）
+  // 1) 提取知识点（429 退避重试；402 上报服务端限制并暂停）
   let topics: string[] | null = null
   for (let attempt = 0; attempt < 4 && topics === null; attempt++) {
     try {
@@ -319,7 +319,7 @@ export async function runImportPipeline(
   // 4. 逐段推进
   const res = await runPending(db, courseId, name, ev)
   const summary = res.quotaExhausted
-    ? `额度不足，已暂停：${res.chapters} 章 · ${res.topics} 知识点 · ${res.cards} 张卡（可充值后继续导入）`
+    ? `服务端暂时不可用，已暂停：${res.chapters} 章 · ${res.topics} 知识点 · ${res.cards} 张卡（可在上方「继续导入」续传）`
     : `完成：${res.chapters} 章 · ${res.topics} 个知识点 · ${res.cards} 张卡${res.failedSegments ? ` · 失败 ${res.failedSegments} 段` : ''}`
   ev.onStage?.('cards', summary)
   return res
@@ -337,7 +337,7 @@ export async function resumeImport(courseId: number, ev: PipelineEvent = {}): Pr
   await db.execute("UPDATE course SET import_status='processing' WHERE id=?", [courseId])
   const res = await runPending(db, courseId, name, ev)
   const summary = res.quotaExhausted
-    ? `额度不足，仍暂停：${res.topics} 知识点 · ${res.cards} 张卡`
+    ? `服务端仍不可用，继续暂停：${res.topics} 知识点 · ${res.cards} 张卡`
     : `续传完成：${res.chapters} 章 · ${res.topics} 个知识点 · ${res.cards} 张卡${res.failedSegments ? ` · 失败 ${res.failedSegments} 段` : ''}`
   ev.onStage?.('cards', summary)
   return res

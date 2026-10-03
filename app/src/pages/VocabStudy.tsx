@@ -1,7 +1,9 @@
 // 词书专学页：/vocab/:key → 只出该词书的队列，进入同一 FSRS 复习循环
+// 每日新学上限取自「调整计划」里该词书的组数（1 组 = 25 词）
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { loadQueueByCourse, nowIso, type QueueItem } from '../db'
+import { getPlan, WORDS_PER_GROUP } from '../study'
 import ReviewSession from './ReviewSession'
 
 const BOOK_NAMES: Record<string, string> = {
@@ -25,7 +27,8 @@ export default function VocabStudy() {
       return
     }
     void (async () => {
-      const q = await loadQueueByCourse(name, nowIso(), 10)
+      const limit = Math.max(1, getPlan(key).groups * WORDS_PER_GROUP)
+      const q = await loadQueueByCourse(name, nowIso(), limit)
       setQueue(q)
       setLoading(false)
       if (!q.length) {
@@ -36,6 +39,13 @@ export default function VocabStudy() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
-  if (loading || !queue.length) return <div className="muted">···</div>
+  if (loading || !queue.length) {
+    return (
+      <div className="study" style={{ padding: '40px 22px' }}>
+        <div className="skeleton sk-line" style={{ width: 140, height: 22 }} />
+        <div className="skeleton" style={{ height: 220, borderRadius: 'var(--r-lg)', marginTop: 14 }} />
+      </div>
+    )
+  }
   return <ReviewSession initialQueue={queue} />
 }

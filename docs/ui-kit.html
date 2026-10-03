@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>知新 Zenew · 组件总览（Sky v5）</title>
+<link rel="stylesheet" href="ui.css" />
+<style>
+  body { background-attachment: scroll; }
+  .kit { max-width: 980px; margin: 0 auto; padding: 28px 24px 80px; }
+  .kit h1 { font-size: var(--fs-3xl); letter-spacing: -.6px; color: var(--ink-1); }
+  .kit h2 { font-size: var(--fs-xl); margin: var(--sp-7) 0 var(--sp-3); color: var(--ink-1); }
+  .kit h3 { font-size: var(--fs-sm); margin: var(--sp-5) 0 var(--sp-2); color: var(--ink-3); font-family: var(--mono); letter-spacing: .6px; }
+  .kit .row-demo { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--sp-3); }
+  .swatch { border-radius: var(--r-input); overflow: hidden; box-shadow: var(--elev-1); background: var(--card); }
+  .swatch i { display: block; height: 54px; }
+  .swatch span { display: block; padding: 7px 10px; font-size: var(--fs-2xs); font-family: var(--mono); color: var(--ink-2); }
+  .type-row { display: flex; align-items: baseline; gap: var(--sp-3); padding: 5px 0; border-bottom: 1px dashed var(--line); }
+  .type-row code { font-size: var(--fs-2xs); color: var(--ink-3); font-family: var(--mono); min-width: 92px; }
+</style>
+</head>
+<body>
+<div class="kit">
+  <h1>知新 Zenew · 组件总览</h1>
+  <p class="text-2" style="margin-top:var(--sp-2)">用真实 <code>src/index.css</code>（Sky v5 设计系统）渲染：色彩 / 字号 / 间距 / 按钮 / 表单 / 导航 / 表格 / 三态 / 浮层 / 反馈。<br />同一页面在浅色与深色两套 token 下都会截图验收。</p>
+
+  <h2>一、色彩 token</h2>
+  <h3>品牌色阶 · 语义色 · 中性色</h3>
+  <div class="swatches">
+    <div class="swatch"><i style="background:var(--brand-100)"></i><span>--brand-100</span></div>
+    <div class="swatch"><i style="background:var(--brand-300)"></i><span>--brand-300</span></div>
+    <div class="swatch"><i style="background:var(--brand)"></i><span>--brand (500)</span></div>
+    <div class="swatch"><i style="background:var(--brand-600)"></i><span>--brand-600</span></div>
+    <div class="swatch"><i style="background:var(--success-500)"></i><span>--success-500</span></div>
+    <div class="swatch"><i style="background:var(--warning-500)"></i><span>--warning-500</span></div>
+    <div class="swatch"><i style="background:var(--danger-500)"></i><span>--danger-500</span></div>
+    <div class="swatch"><i style="background:var(--ink)"></i><span>--ink</span></div>
+    <div class="swatch"><i style="background:var(--ink-2)"></i><span>--ink-2</span></div>
+    <div class="swatch"><i style="background:var(--ink-3)"></i><span>--ink-3</span></div>
+    <div class="swatch"><i style="background:var(--card);box-shadow:inset 0 0 0 1px var(--line)"></i><span>--card</span></div>
+    <div class="swatch"><i style="background:var(--paper-sunken)"></i><span>--paper-sunken</span></div>
+  </div>
+
+  <h2>二、字号阶梯（rem，随 --scale 缩放）</h2>
+  <div class="card">
+    <div class="type-row"><code>--fs-3xl</code><span style="font-size:var(--fs-3xl);font-weight:var(--fw-black)">页面主标题 Page Title</span></div>
+    <div class="type-row"><code>--fs-xl</code><span style="font-size:var(--fs-xl);font-weight:var(--fw-bold)">区块标题 Section</span></div>
+    <div class="type-row"><code>--fs-lg</code><span style="font-size:var(--fs-lg);font-weight:var(--fw-semibold)">卡片标题 Card Title</span></div>
+    <div class="type-row"><code>--fs-base</code><span style="font-size:var(--fs-base)">正文：先回忆再看答案，一次一卡。</span></div>
+    <div class="type-row"><code>--fs-sm</code><span style="font-size:var(--fs-sm);color:var(--ink-2)">次级说明文字 secondary</span></div>
+    <div class="type-row"><code>--fs-xs</code><span style="font-size:var(--fs-xs);color:var(--ink-3)">弱化文字 tertiary（4.6:1，达 AA）</span></div>
+    <div class="type-row" style="border-bottom:none"><code>--mono</code><span class="mono" style="font-size:var(--fs-sm)">BczID 1408146571 · 28.4%</span></div>
+  </div>
+
+  <h2>三、按钮</h2>
+  <h3>变体 · 尺寸 · 状态</h3>
+  <div class="card stack">
+    <div class="row-demo">
+      <button class="btn btn-primary">主按钮</button>
+      <button class="btn">次按钮</button>
+      <button class="btn btn-outline">描边按钮</button>
+      <button class="btn btn-ghost">幽灵按钮</button>
+      <button class="btn is-text">文字按钮</button>
+      <button class="btn is-danger">危险按钮</button>
+    </div>
+    <div class="row-demo">
+      <button class="btn btn-primary btn-lg">大按钮</button>
+      <button class="btn btn-primary">中按钮</button>
+      <button class="btn btn-primary btn-sm">小按钮</button>
+      <button class="btn btn-primary btn-xs">超小</button>
+    </div>
+    <div class="row-demo">
+      <button class="btn btn-primary is-loading">保存中</button>
+      <button class="btn btn-primary" disabled>禁用</button>
+      <button class="btn" disabled>禁用（次）</button>
+      <button class="btn btn-primary btn-sm">＋ 带图标</button>
+    </div>
+  </div>
+
+  <h2>四、表单</h2>
+  <div class="card stack">
+    <div class="grid-12">
+      <div class="col-6">
+        <div class="field">
+          <label class="field-label" for="i1">默认输入框</label>
+          <input id="i1" class="input" placeholder="请输入词书名称" />
+          <span class="field-hint">最多 10 个字</span>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="field">
+          <label class="field-label" for="i2">聚焦态</label>
+          <input id="i2" class="input" value="四级高频" style="background:var(--card);box-shadow:0 0 0 2px var(--brand-line),0 0 0 4px var(--brand-glow)" />
+          <span class="field-hint">键盘焦点有可见焦点环</span>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="field">
+          <label class="field-label" for="i3">错误态</label>
+          <input id="i3" class="input is-error" value="not-an-email" aria-invalid="true" />
+          <span class="field-error">⚠ 邮箱格式看起来不太对，请检查后重试</span>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="field">
+          <label class="field-label" for="i4">禁用态</label>
+          <input id="i4" class="input" value="不可编辑" disabled />
+          <span class="field-hint">禁用时降低对比度但保持可读</span>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="field"><label class="field-label" for="i5">搜索框</label>
+          <div class="dict-search-wrap" role="search">⌕<input id="i5" class="input" placeholder="输入单词或中文释义" /></div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="field"><label class="field-label" for="i6">文本域</label>
+          <textarea id="i6" class="textarea" placeholder="粘贴需要导入的知识点…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="row-demo">
+      <button class="switch is-on" role="switch" aria-checked="true" aria-label="音效"></button>
+      <button class="switch" role="switch" aria-checked="false" aria-label="震动"></button>
+      <label class="check"><input type="checkbox" checked /><span class="box">✓</span><span>复选项</span></label>
+      <label class="check"><input type="checkbox" /><span class="box">✓</span><span>未选</span></label>
+      <label class="check"><input type="radio" checked /><span class="box is-round">•</span><span>单选 A</span></label>
+      <label class="check"><input type="radio" /><span class="box is-round">•</span><span>单选 B</span></label>
+    </div>
+    <div class="segmented" role="group" aria-label="主题模式">
+      <button aria-pressed="false">跟随系统</button>
+      <button aria-pressed="true">浅色</button>
+      <button aria-pressed="false">深色</button>
+    </div>
+  </div>
+
+  <h2>五、展示类：标签 / 徽标 / 头像 / 进度 / 骨架</h2>
+  <div class="card stack">
+    <div class="row-demo">
+      <span class="tag">✓ 已覆盖</span>
+      <span class="tag tag-ok">✓ 已熟识</span>
+      <span class="tag tag-gold">⚠ 待复习 14</span>
+      <span class="tag is-danger">✕ 生成失败</span>
+      <span class="tag is-neutral">草稿</span>
+      <span class="tag tag-mono">WORD</span>
+      <span class="badge">12</span>
+      <span class="avatar is-sm">L</span>
+      <span class="avatar is-md">知</span>
+      <span class="avatar is-lg">X</span>
+    </div>
+    <div class="progress-line" role="progressbar" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100" aria-label="学习进度"><i style="width:42%"></i></div>
+    <div class="progress-line is-mint" role="progressbar" aria-valuenow="86" aria-valuemin="0" aria-valuemax="100" aria-label="掌握度"><i style="width:86%"></i></div>
+    <div class="stack">
+      <div class="skeleton" style="height:16px;width:42%"></div>
+      <div class="skeleton" style="height:14px;width:88%"></div>
+      <div class="skeleton skeleton-block" style="height:88px"></div>
+    </div>
+  </div>
+
+  <h2>六、导航：Tabs / 面包屑 / 页头 / 分页</h2>
+  <div class="card stack">
+    <div class="cat-tabs" role="tablist" aria-label="词库分类">
+      <button class="cat-tab is-active" role="tab" aria-selected="true">热门</button>
+      <button class="cat-tab" role="tab" aria-selected="false">四级</button>
+      <button class="cat-tab" role="tab" aria-selected="false">六级</button>
+      <button class="cat-tab" role="tab" aria-selected="false">高频</button>
+    </div>
+    <div class="mini-tabs" role="tablist" aria-label="例句视图">
+      <button class="mini-tab is-active" role="tab" aria-selected="true">例句</button>
+      <button class="mini-tab" role="tab" aria-selected="false">变形·派生</button>
+      <button class="mini-tab" role="tab" aria-selected="false">延展</button>
+    </div>
+    <nav class="breadcrumb" aria-label="面包屑导航">
+      <span>🏠</span>
+      <span class="inline" style="gap:6px"><button>课程</button><span class="sep">/</span><span aria-current="page">数据结构</span></span>
+    </nav>
+    <header>
+      <div class="page-header">
+        <button class="icon-btn" aria-label="返回上一页">‹</button>
+        <div class="page-header-main">
+          <div class="kicker">COURSE</div>
+          <h1 class="page-header-title">数据结构</h1>
+        </div>
+        <div class="page-header-actions"><button class="btn btn-sm btn-outline">补齐未覆盖</button></div>
+      </div>
+    </header>
+    <nav class="pagination" aria-label="分页">
+      <button class="page-btn" aria-label="上一页">‹</button>
+      <button class="page-btn" aria-current="page">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn" aria-label="下一页">›</button>
+      <span class="row-meta" style="margin-inline-start:var(--sp-2)">共 128 条</span>
+    </nav>
+  </div>
+
+  <h2>七、表格（高信息密度）</h2>
+  <div class="table-wrap">
+    <table class="data-table">
+      <caption>第 3 章 · 知识点覆盖情况</caption>
+      <thead>
+        <tr>
+          <th scope="col" aria-sort="ascending">知识点 <span class="sort-mark">▲</span></th>
+          <th scope="col" style="text-align:end">卡片</th>
+          <th scope="col" style="text-align:end">已掌握</th>
+          <th scope="col">覆盖</th>
+          <th scope="col" style="text-align:end">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>二叉树的遍历</td><td class="is-num tnum">6</td><td class="is-num tnum">4</td><td><span class="tag tag-ok">✓ 已覆盖</span></td><td class="is-num"><button class="btn btn-xs btn-outline">+5</button></td></tr>
+        <tr><td>平衡树与旋转</td><td class="is-num tnum">2</td><td class="is-num tnum">0</td><td><span class="tag tag-gold">⚠ 待补齐</span></td><td class="is-num"><button class="btn btn-xs btn-primary">生成</button></td></tr>
+        <tr><td>图的最短路径</td><td class="is-num tnum">5</td><td class="is-num tnum">3</td><td><span class="tag tag-ok">✓ 已覆盖</span></td><td class="is-num"><button class="btn btn-xs btn-outline">+5</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>八、三态（加载 / 空 / 错误）</h2>
+  <div class="grid-12">
+    <div class="col-4"><div class="card" aria-busy="true">
+      <div class="stack"><div class="skeleton" style="height:20px;width:42%"></div><div class="skeleton" style="height:14px;width:88%"></div><div class="skeleton skeleton-block" style="height:72px"></div></div>
+    </div></div>
+    <div class="col-4"><div class="card"><div class="state-view" role="status">
+      <span class="state-art" aria-hidden>🗂</span>
+      <div class="state-title">还没有课程</div>
+      <p class="state-desc">导入教材 PDF，或输入课程名让 AI 生成大纲，之后这里会出现章节与知识点。</p>
+      <div class="state-actions"><button class="btn btn-primary btn-sm">导入教材</button><button class="btn btn-sm">生成大纲</button></div>
+    </div></div></div>
+    <div class="col-4"><div class="card"><div class="state-view" role="alert">
+      <span class="state-art is-danger" aria-hidden>⚠</span>
+      <div class="state-title">加载失败</div>
+      <p class="state-desc">网络似乎不太稳定，本地学习内容不受影响。</p>
+      <div class="state-actions"><button class="btn btn-primary btn-sm">重试</button></div>
+    </div></div></div>
+  </div>
+
+  <h2>九、浮层与反馈</h2>
+  <div class="grid-12">
+    <div class="col-6">
+      <div class="card" style="position:relative;overflow:hidden;min-height:210px">
+        <div class="modal" style="position:absolute;inset:12px;width:auto;max-height:none;animation:none" role="dialog" aria-modal="true" aria-labelledby="m1">
+          <h2 class="modal-title" id="m1">删除课程「数据结构」？</h2>
+          <div class="modal-body">该课程下的知识点、卡片与学习记录都会一并删除，且无法恢复。</div>
+          <div class="modal-actions"><button class="btn btn-ghost">取消</button><button class="btn is-danger">确认删除</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card" style="position:relative;overflow:hidden;min-height:210px;display:flex;flex-direction:column;gap:var(--sp-2)">
+        <div class="toast is-success" style="position:static;transform:none;max-width:100%"><span class="toast-ico">✓</span><span class="toast-text">计划已保存</span></div>
+        <div class="toast is-error" style="position:static;transform:none;max-width:100%"><span class="toast-ico">✕</span><span class="toast-text">保存失败，请稍后重试</span></div>
+        <div class="toast is-warning" style="position:static;transform:none;max-width:100%"><span class="toast-ico">⚠</span><span class="toast-text">当前处于离线状态</span></div>
+        <div class="net-banner is-offline" style="margin:0"><span>⚠</span><span style="flex:1">当前离线：本地学习照常可用</span><button class="btn btn-xs btn-outline">重新连接</button></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>十、卡片与列表</h2>
+  <div class="grid-12">
+    <div class="col-6">
+      <div class="card">
+        <div class="inline" style="gap:var(--sp-3)">
+          <span class="avatar is-md" style="background:linear-gradient(140deg,var(--brand),var(--brand-300))">L</span>
+          <div class="spacer-flex">
+            <div class="row-title truncate">四级高频 · 第 8 组</div>
+            <div class="row-meta">已学 200 / 739 词 · 每日 3 组</div>
+          </div>
+          <button class="btn btn-sm btn-primary">开始学习</button>
+        </div>
+        <div style="margin-top:var(--sp-4)"><div class="progress-line" role="progressbar" aria-valuenow="27" aria-valuemin="0" aria-valuemax="100" aria-label="词书进度"><i style="width:27%"></i></div></div>
+      </div>
+      <div class="group" style="margin-top:var(--sp-3)">
+        <button class="group-row is-link"><div class="group-row-main"><div class="group-row-title">我的词书</div><div class="group-row-sub">四本内置词书与生词本</div></div><span class="group-row-value">›</span></button>
+        <div class="group-row"><div class="group-row-main"><div class="group-row-title">音效</div><div class="group-row-sub">答对 / 答错提示音</div></div><button class="switch is-on" role="switch" aria-checked="true" aria-label="音效"></button></div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="rows">
+        <div class="row"><div class="row-open"><div class="spacer-flex"><div class="row-title">二叉树的遍历</div><div class="row-meta">6 张卡 · 已掌握 4</div></div><span class="tag tag-ok">✓ 已覆盖</span></div></div>
+        <div class="row"><div class="row-open"><div class="spacer-flex"><div class="row-title">图的最短路径</div><div class="row-meta">5 张卡 · 已掌握 3</div></div><span class="tag tag-gold">⚠ 待补齐</span></div></div>
+      </div>
+      <div class="card" style="margin-top:var(--sp-3)">
+        <div class="section-label">学习计划</div>
+        <div class="plan-summary" style="margin-top:0">预计完成时间：<b>2026年10月21日</b><br />预计每日用时：<b>31 分钟</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

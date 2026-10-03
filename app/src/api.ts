@@ -78,7 +78,13 @@ function detailText(d: unknown): string {
   return ''
 }
 
-export interface Me { email: string; used_tokens: number; quota_tokens: number; balance_tokens?: number }
+export interface Me {
+  email: string
+  /** 服务端可能返回的用量字段：界面已不再展示，仅保留类型兼容 */
+  used_tokens?: number
+  quota_tokens?: number
+  balance_tokens?: number
+}
 export interface ChapterDef { title: string; topics: string[] }
 export interface CourseDef { id: string; name: string; chapters: ChapterDef[] }
 
@@ -112,28 +118,3 @@ export const genCards = (
   types: string[] = ['basic', 'why', 'choice'],
   extra: { course?: string; chapter?: string; avoid?: string[] } = {}
 ) => api('/gen/cards', { method: 'POST', body: { topic_title, context, n, types, ...extra }, timeoutMs: 120000 })
-
-/** 收款：网页下单（无需登录） */
-export const createOrder = (tier: number, email?: string): Promise<{ order_no: string; tier: number; price_cny: number; tokens: number; status: string }> =>
-  api('/billing/order', { method: 'POST', body: { tier, email }, auth: false })
-
-/** 充值：卡密兑换（额度进入余额，不随月份清零） */
-export const redeemCode = (code: string): Promise<{ ok: boolean; tier: number; price_cny: number; added_tokens: number; balance_tokens: number }> =>
-  api('/billing/redeem', { method: 'POST', body: { code } })
-
-/** 我的订单（App 轮询/对账用） */
-export interface MyOrder {
-  order_no: string
-  tier: number
-  price_cny: number
-  tokens: number
-  status: 'pending' | 'paid' | string
-  credited: number
-  code: string | null
-  created_at: string
-  paid_at: string | null
-}
-export const fetchMyOrders = async (): Promise<MyOrder[]> => {
-  const r = await api('/billing/my-orders')
-  return (r?.orders || []) as MyOrder[]
-}

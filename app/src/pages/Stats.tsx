@@ -1,144 +1,266 @@
-import { useEffect, useState } from 'react'
-import { getDb, localDayKey } from '../db'
-import { fetchMe, type Me } from '../api'
+import { useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
+import { BarChart3, Scissors, TrendingUp } from 'lucide-react'
+import { getDb } from '../db'
+import { forecastDays, progressSeries } from '../study'
+import { formatNumber, formatPercent } from '../lib/format'
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  LoadingState,
+  PageHeader,
+  Tag,
+  useAsync,
+} from '../ui'
 
 interface Stats {
-  courses: number
-  topics: number
-  cards: number
-  mastered: number
-  reviewing: number
+  fresh: number
+  strong: number
+  solid: number
+  known: number
+  cut: number
+  learned: number
+  due: number
+  freshLeft: number
   todayReviews: number
-  week: { day: string; n: number }[]
+  nearMastery: number
+  forecast: { label: string; count: number; overdue: boolean }[]
+  progress: { label: string; value: number }[]
+}
+
+async function loadStats(): Promise<Stats> {
+  const db = await getDb()
+  const now = new Date().toISOString()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const n = async (sql: string, args?: unknown[]) => {
+    const r = await db.select<{ n: number }[]>(sql, args as never[])
+    return Number(r[0]?.n || 0)
+  }
+  const [fresh, strong, solid, known, cut, learned, due, freshLeft, todayReviews, nearMastery, forecast, progress] =
+    await Promise.all([
+      n('SELECT COUNT(*) AS n FROM card_state WHERE state=1 AND stability<1'),
+      n('SELECT COUNT(*) AS n FROM card_state WHERE state IN (1,3) AND stability>=1'),
+      n('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability<21'),
+      n('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=21'),
+      n('SELECT COUNT(*) AS n FROM card WHERE suspended=1'),
+      n('SELECT COUNT(*) AS n FROM card_state WHERE state!=0'),
+      n('SELECT COUNT(*) AS n FROM card_state cs JOIN card c ON c.id=cs.card_id WHERE c.suspended=0 AND cs.due<=? AND cs.state!=0', [now]),
+      n('SELECT COUNT(*) AS n FROM card c LEFT JOIN card_state cs ON cs.card_id=c.id WHERE c.suspended=0 AND cs.card_id IS NULL'),
+      n('SELECT COUNT(*) AS n FROM review_log WHERE reviewed_at>=?', [today.toISOString()]),
+      n('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=15 AND stability<21'),
+      forecastDays(10),
+      progressSeries(10),
+    ])
+  return { fresh, strong, solid, known, cut, learned, due, freshLeft, todayReviews, nearMastery, forecast, progress }
 }
 
 export default function Stats() {
-  const [s, setS] = useState<Stats | null>(null)
-  const [me, setMe] = useState<Me | null>(null)
+  const nav = useNavigate()
+  const { data, loading, error, reload } = useAsync(loadStats, [])
 
-  useEffect(() => {
-    ;(async () => {
-      const db = await getDb()
-      const courses = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM course')
-      const topics = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM topic WHERE parent_id IS NOT NULL')
-      const cards = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card')
-      const mastered = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=21')
-      const reviewing = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability<21')
-      const learning = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card_state WHERE state IN (1,3)')
-      const logs = await db.select<{ reviewed_at: string; rating: number }[]>(
-        'SELECT reviewed_at, rating FROM review_log WHERE reviewed_at >= ?',
-        [new Date(Date.now() - 7 * 86400000).toISOString()]
-      )
-      // 本地时区分桶（UTC 存库会在东八区早上 8 点前错位到昨天）
-      const byDay = new Map<string, number>()
-      for (const l of logs) {
-        const k = localDayKey(l.reviewed_at)
-        byDay.set(k, (byDay.get(k) || 0) + 1)
-      }
-      const todayKey = localDayKey()
-      const week: { day: string; n: number }[] = []
-      for (let i = 6; i >= 0; i--) {
-        const dt = new Date(Date.now() - i * 86400000)
-        const key = localDayKey(dt)
-        week.push({ day: key.slice(5), n: byDay.get(key) || 0 })
-      }
-      setS({
-        courses: courses[0]?.n || 0,
-        topics: topics[0]?.n || 0,
-        cards: cards[0]?.n || 0,
-        mastered: mastered[0]?.n || 0,
-        reviewing: (reviewing[0]?.n || 0) + (learning[0]?.n || 0),
-        todayReviews: byDay.get(todayKey) || 0,
-        week,
-      })
-      try {
-        setMe(await fetchMe())
-      } catch {
-        /* 离线静默 */
-      }
-    })().catch(console.error)
-  }, [])
-
-  if (!s) {
-    return (
-      <div className="page-in">
-        <div className="kicker">STATS / RETENTION</div>
-        <div className="page-title">统计</div>
-        <div className="metric-row" style={{ marginTop: 24 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="metric">
-              <div className="skeleton sk-line" style={{ width: 54, height: 26 }} />
-              <div className="skeleton sk-line" style={{ width: 36, height: 10, marginTop: 8 }} />
-            </div>
-          ))}
-        </div>
-        <div className="card"><div className="skeleton sk-card" style={{ height: 160 }} /></div>
-      </div>
-    )
-  }
-  const maxWeek = Math.max(1, ...s.week.map((w) => w.n))
-  const quota = me?.quota_tokens || 0
-  const pct = quota > 0 ? Math.min(100, ((me?.used_tokens || 0) / quota) * 100) : 0
+  const states = useMemo(() => {
+    if (!data) return []
+    return [
+      { key: 'fresh', label: '初记', value: data.fresh, cls: 'state-fresh' },
+      { key: 'strong', label: '强化', value: data.strong, cls: 'state-strong' },
+      { key: 'solid', label: '巩固', value: data.solid, cls: 'state-solid' },
+      { key: 'known', label: '熟识', value: data.known, cls: 'state-known' },
+      { key: 'cut', label: '已斩', value: data.cut, cls: 'state-cut' },
+    ]
+  }, [data])
 
   return (
     <div className="page-in">
-      <div className="kicker">STATS / RETENTION</div>
-      <div className="page-title">统计</div>
+      <PageHeader
+        title="复习统计"
+        kicker="STATS / RETENTION"
+        onBack={() => nav(-1)}
+        crumbs={[{ label: '我的', to: '/settings' }, { label: '复习统计' }]}
+        onNavigate={(to) => nav(to)}
+        actions={
+          <IconButton label="刷新统计" onClick={reload}>
+            <TrendingUp size={17} />
+          </IconButton>
+        }
+      />
 
-      <div className="metric-row" style={{ marginTop: 24 }}>
-        <div className="metric"><b>{s.todayReviews}</b><span>今日</span></div>
-        <div className={`metric${s.mastered > 0 ? ' metric-hl' : ''}`}><b>{s.mastered}</b><span>已掌握</span></div>
-        <div className="metric"><b>{s.reviewing}</b><span>巩固中</span></div>
-        <div className="metric"><b>{s.cards}</b><span>卡片</span></div>
-      </div>
-      <div className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 11, marginBottom: 22 }}>
-        {s.courses} 门课程 · {s.topics} 个知识点 · 掌握 = 稳定期 ≥ 21 天
-      </div>
-      <div className="card">
-        <div className="section-label">LAST 7 DAYS</div>
-        <div className="chart-values">
-          {s.week.map((w) => (
-            <span key={w.day} style={{ visibility: w.n > 0 ? 'visible' : 'hidden' }}>{w.n}</span>
-          ))}
-        </div>
-        <div className="chart">
-          {s.week.map((w) => (
-            <div key={w.day} className={`chart-col${w.n === 0 ? ' zero' : ''}`}>
-              <i style={w.n > 0 ? { height: `${Math.max(4, (w.n / maxWeek) * 100)}%` } : undefined} />
-            </div>
-          ))}
-        </div>
-        <div className="chart-labels">
-          {s.week.map((w) => (
-            <span key={w.day}>{w.day}</span>
-          ))}
-        </div>
-      </div>
+      {loading && <LoadingState rows={3} title="正在统计复习情况" />}
 
-      <div className="card">
-        <div className="section-label">QUOTA</div>
-        {me ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>
-                {me.used_tokens.toLocaleString()} / {me.quota_tokens.toLocaleString()}
-              </span>
-              <span className="tag tag-mono tag-gold">{pct.toFixed(1)}%</span>
+      {!loading && error && (
+        <ErrorState
+          title="统计读取失败"
+          desc={error}
+          onRetry={reload}
+          extra={
+            <Button variant="ghost" size="sm" onClick={() => nav('/today')}>
+              回到单词页
+            </Button>
+          }
+        />
+      )}
+
+      {!loading && !error && data && (
+        <>
+          <p className="page-sub" style={{ marginTop: 0 }}>
+            FSRS 调度：初记 → 强化 → 巩固 → 熟识，已经认识的可直接「斩」出计划
+          </p>
+
+          {data.nearMastery > 0 && (
+            <div className="robot-hint fade-up" style={{ marginBottom: 'var(--sp-3)' }}>
+              <div className="robot-face" aria-hidden>
+                <BarChart3 size={20} />
+              </div>
+              <p>
+                目测有 <b>{formatNumber(data.nearMastery)}</b> 个知识点接近「熟识」，可以斩了吧？
+              </p>
+              <Button variant="secondary" size="sm" icon={<Scissors size={13} />} onClick={() => nav('/review')}>
+                斩词模式
+              </Button>
             </div>
-            <div className="bar" style={{ height: 5 }}>
-              {pct > 0 && <span className="seg-gold" style={{ width: `${pct}%` }} />}
+          )}
+
+          <div className="metric-row">
+            <div className="metric">
+              <b className="tnum">{formatNumber(data.todayReviews)}</b>
+              <span>今日已复习</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
-              <span className="muted" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>充值余额</span>
-              <span className="stat-value" style={{ fontSize: 13, fontWeight: 600 }}>
-                {((me.balance_tokens || 0) / 10000).toFixed(0)} 万 tokens
-              </span>
+            <div className="metric metric-hl">
+              <b className="tnum">{formatNumber(data.known)}</b>
+              <span>已熟识</span>
             </div>
-          </>
-        ) : (
-          <div className="muted">离线中</div>
-        )}
-      </div>
+            <div className="metric">
+              <b className="tnum">{formatNumber(data.due)}</b>
+              <span>待复习</span>
+            </div>
+            <div className="metric">
+              <b className="tnum">{formatNumber(data.learned)}</b>
+              <span>累计学习</span>
+            </div>
+          </div>
+
+          <Card>
+            <div className="section-label">我的复习计划 · 未来 10 天</div>
+            <div className="chart-values">
+              {data.forecast.map((f, i) => (
+                <span key={i} style={{ visibility: f.count > 0 ? 'visible' : 'hidden' }} className="tnum">
+                  {f.count}
+                </span>
+              ))}
+            </div>
+            <div className="chart" role="img" aria-label="未来十天每日到期卡片数量">
+              {data.forecast.map((f, i) => (
+                <div key={i} className={`chart-col${f.count === 0 ? ' zero' : ''}${f.overdue ? ' is-overdue' : ''}`}>
+                  <i
+                    style={f.count > 0 ? { height: `${Math.max(6, (f.count / Math.max(1, ...data.forecast.map((x) => x.count))) * 100)}%` } : undefined}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="chart-labels">
+              {data.forecast.map((f, i) => (
+                <span key={i}>{f.label}</span>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <div className="section-label">我的掌握现状</div>
+            <div className="state-row">
+              {states.map((st) => (
+                <div key={st.key} className={`state-col ${st.cls}`}>
+                  <span className="state-num tnum">{formatNumber(st.value)}</span>
+                  <i
+                    style={{
+                      height: `${Math.max(4, (st.value / Math.max(1, states.reduce((n, x) => n + x.value, 0))) * 100)}%`,
+                    }}
+                  />
+                  <small>{st.label}</small>
+                </div>
+              ))}
+            </div>
+            <div className="row-meta" style={{ marginTop: 'var(--sp-3)' }}>
+              合计 {formatNumber(states.reduce((n, x) => n + x.value, 0))} 个知识点 · 熟识 = 稳定期 ≥ 21 天
+            </div>
+          </Card>
+
+          <Card>
+            <div className="section-label">我的掌握进展 · 最近 10 天累计</div>
+            {data.progress.length ? (
+              <>
+                <div className="area-chart" role="img" aria-label="最近十天累计学习进展">
+                  {data.progress.map((p, i) => (
+                    <div
+                      key={i}
+                      className={`area-col${i === data.progress.length - 1 ? ' is-last' : ''}`}
+                      title={`${p.label} · 累计 ${p.value}`}
+                    >
+                      <i
+                        style={{
+                          height: `${Math.max(4, (p.value / Math.max(1, ...data.progress.map((x) => x.value))) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="area-axis">
+                  <span>{data.progress[0]?.label}</span>
+                  <span className="tnum">
+                    {data.progress[data.progress.length - 1]?.label} · 累计 {formatNumber(data.progress[data.progress.length - 1]?.value)}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                title="还没有复习记录"
+                desc="学几张卡之后，这里会画出你的记忆增长曲线。"
+                action={
+                  <Button variant="primary" onClick={() => nav('/vocab')}>
+                    去挑一本词书
+                  </Button>
+                }
+              />
+            )}
+          </Card>
+
+          <div className="metric-row" style={{ marginTop: 'var(--sp-3)' }}>
+            <div className="metric">
+              <b className="tnum">{formatNumber(data.learned)}</b>
+              <span>累计学习</span>
+            </div>
+            <div className="metric">
+              <b className="tnum">{formatNumber(data.freshLeft)}</b>
+              <span>当前待学</span>
+            </div>
+            <div className="metric">
+              <b className="tnum">{formatNumber(data.due)}</b>
+              <span>待复习</span>
+            </div>
+            <div className="metric">
+              <b className="tnum">{formatNumber(data.cut)}</b>
+              <span>累计斩词</span>
+            </div>
+          </div>
+
+          <Card>
+            <div className="section-label">数据说明</div>
+            <div className="inline" style={{ gap: 'var(--sp-2)' }}>
+              <Tag tone="success" icon={<TrendingUp size={11} />}>
+                学习记录全部存在本机
+              </Tag>
+              <Tag tone="neutral">已掌握 {formatPercent(
+                (data.known / Math.max(1, data.learned)) * 100
+              )}</Tag>
+            </div>
+            <p className="row-meta" style={{ marginTop: 'var(--sp-3)' }}>
+              统计来自本地 SQLite 的复习日志与 FSRS 记忆状态，不依赖网络，不上传任何学习数据。
+            </p>
+          </Card>
+        </>
+      )}
     </div>
   )
 }
