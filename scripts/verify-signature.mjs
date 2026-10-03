@@ -6,7 +6,7 @@ const Z = 'C:/Users/李星历/Desktop/课程学习软件/Zenew'
 const conf = JSON.parse(readFileSync(`${Z}/app/src-tauri/tauri.conf.json`, 'utf8'))
 const pubB64 = conf.plugins.updater.pubkey
 
-const exePath = `${Z}/app/src-tauri/target/release/bundle/nsis/Zenew_0.15.0_x64-setup.exe`
+const exePath = `${Z}/app/src-tauri/target/release/bundle/nsis/Zenew_${conf.version}_x64-setup.exe`
 const sigPath = `${exePath}.sig`
 const file = readFileSync(exePath)
 const sigB64 = readFileSync(sigPath, 'utf8').trim()

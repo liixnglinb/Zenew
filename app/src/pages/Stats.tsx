@@ -149,8 +149,11 @@ export default function Stats() {
             </div>
           </div>
 
-          <Card>
-            <div className="section-label">我的复习计划 · 未来 10 天</div>
+          {/* 桌面两栏：左侧主图（未来十天计划），右侧辅栏（掌握现状 + 进展） */}
+          <div className="grid-2 is-aside">
+            <div>
+              <Card>
+                <div className="section-label">我的复习计划 · 未来 10 天</div>
             <div className="chart-values">
               {data.forecast.map((f, i) => (
                 <span key={i} style={{ visibility: f.count > 0 ? 'visible' : 'hidden' }} className="tnum">
@@ -174,8 +177,11 @@ export default function Stats() {
             </div>
           </Card>
 
-          <Card>
-            <div className="section-label">我的掌握现状</div>
+            </div>
+
+            <div className="stack">
+              <Card>
+                <div className="section-label">我的掌握现状</div>
             <div className="state-row">
               {states.map((st) => (
                 <div key={st.key} className={`state-col ${st.cls}`}>
@@ -232,6 +238,9 @@ export default function Stats() {
               />
             )}
           </Card>
+
+            </div>
+          </div>
 
           <div className="metric-row" style={{ marginTop: 'var(--sp-3)' }}>
             <div className="metric">
