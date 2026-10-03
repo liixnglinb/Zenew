@@ -168,7 +168,7 @@ export default function Tasks() {
           {data.tasks.length === 0 && (
             <EmptyState
               title="今天还没有任务"
-              desc="导入一本词书或课程后，每日任务会自动出现。"
+              desc="导入一本词书后，每日任务会自动出现。"
               action={
                 <Button variant="primary" onClick={() => nav('/vocab')}>
                   去挑一本词书

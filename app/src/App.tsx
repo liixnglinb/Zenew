@@ -1,13 +1,12 @@
-import { HashRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { useCallback, useEffect, useState } from 'react'
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   BarChart3,
   BookOpen,
-  CalendarDays,
   Flame,
-  GraduationCap,
   Home,
   Info,
+  Keyboard,
   Languages,
   ListChecks,
   Moon,
@@ -17,13 +16,12 @@ import {
   Swords,
   Trophy,
   User,
-  Users,
   Zap,
 } from 'lucide-react'
 import { ApiError, fetchMe, getToken, setToken, type Me } from './api'
 import { isTauri, ensureSchema } from './db'
 import { todayActivity, applySettings, getSettings, loadStreak } from './study'
-import { LANGS, applyDirection, getLang, setLang, useI18n } from './lib/i18n'
+import { LANGS, applyDirection, getLang, setLang } from './lib/i18n'
 import { formatNumber } from './lib/format'
 import {
   Button,
@@ -38,14 +36,21 @@ import {
   useTheme,
 } from './ui'
 import TitleBar from './components/TitleBar'
+import SideNav from './ui/sidebar'
+import {
+  ShortcutHelp,
+  getLastRoute,
+  loadNavCollapsed,
+  saveNavCollapsed,
+  useHotkeys,
+  useLastRoute,
+  useWindowState,
+} from './ui/desktop'
 import Login from './pages/Login'
 import Today from './pages/Today'
-import Courses from './pages/Courses'
-import CourseDetail from './pages/CourseDetail'
 import ReviewSession from './pages/ReviewSession'
 import Stats from './pages/Stats'
 import SettingsPage from './pages/Settings'
-import Exams from './pages/Exams'
 import Vocab from './pages/Vocab'
 import VocabStudy from './pages/VocabStudy'
 import Dict from './pages/Dict'
@@ -53,23 +58,14 @@ import Plan from './pages/Plan'
 import Tasks from './pages/Tasks'
 import Rank from './pages/Rank'
 
-/** 一级导航（底部 5 tab）：单词 / 学习 / 训练场 / 一起背 / 我的 */
-const TABS = [
-  { to: '/today', labelKey: 'nav.home', icon: Home, match: ['/today'] },
-  { to: '/vocab', labelKey: 'nav.study', icon: BookOpen, match: ['/vocab', '/plan'] },
-  { to: '/review', labelKey: 'nav.train', icon: Swords, match: ['/review'] },
-  { to: '/rank', labelKey: 'nav.social', icon: Users, match: ['/rank'] },
-  { to: '/settings', labelKey: 'nav.me', icon: User, match: ['/settings', '/tasks'] },
-]
+/** 一级导航已由左侧固定侧栏承担（见 ui/sidebar.tsx 的 NAV_ITEMS） */
 
 /** 二级导航（抽屉）：功能入口的完整清单 */
 const DRAWER_ITEMS = [
   { to: '/today', label: '单词（词云首页）', icon: Home },
   { to: '/vocab', label: '词库与词书', icon: BookOpen },
   { to: '/review', label: '训练场（开始复习）', icon: Swords },
-  { to: '/courses', label: '课程与教材导入', icon: GraduationCap },
   { to: '/dict', label: '查词（14,625 词）', icon: Search },
-  { to: '/exams', label: '考试日历', icon: CalendarDays },
   { to: '/stats', label: '复习统计', icon: BarChart3 },
   { to: '/tasks', label: '每日任务', icon: ListChecks },
   { to: '/rank', label: '学习排行榜', icon: Trophy },
@@ -79,16 +75,51 @@ const DRAWER_ITEMS = [
 function Shell({ meEmail }: { meEmail: string }) {
   const nav = useNavigate()
   const location = useLocation()
-  const { t } = useI18n()
   const { resolved, mode, setMode, toggle } = useTheme()
   const online = useOnline()
   const [drawer, setDrawer] = useState(false)
   const [streak, setStreak] = useState(0)
   const [points, setPoints] = useState(0)
   const [lang, setLangState] = useState(getLang())
+  const [navCollapsed, setNavCollapsed] = useState(loadNavCollapsed())
+  const [helpOpen, setHelpOpen] = useState(false)
 
-  // 沉浸页（学习会话）隐藏顶栏与底部导航
+  // 沉浸页（学习会话）隐藏顶栏与侧栏
   const immersive = location.pathname.startsWith('/review') || /^\/vocab\/[^/]+$/.test(location.pathname)
+
+  // 桌面能力：窗口尺寸/位置/最大化记忆 + 记住上次停留页面
+  useWindowState()
+  useLastRoute()
+
+  // 全键盘操作（桌面软件的基本素养）
+  const hotkeys = useMemo(
+    () => ({
+      'ctrl+1': () => nav('/today'),
+      'ctrl+2': () => nav('/review'),
+      'ctrl+3': () => nav('/vocab'),
+      'ctrl+4': () => nav('/dict'),
+      'ctrl+5': () => nav('/stats'),
+      'ctrl+6': () => nav('/tasks'),
+      'ctrl+7': () => nav('/rank'),
+      'ctrl+8': () => nav('/settings'),
+      'ctrl+k': () => nav('/dict'),
+      'ctrl+b': () =>
+        setNavCollapsed((v) => {
+          saveNavCollapsed(!v)
+          return !v
+        }),
+      'ctrl+/': () => setHelpOpen((v) => !v),
+      escape: () => {
+        if (helpOpen) {
+          setHelpOpen(false)
+          return
+        }
+        if (window.history.length > 1) nav(-1)
+      },
+    }),
+    [nav, helpOpen]
+  )
+  useHotkeys(hotkeys)
 
   const refreshBadges = useCallback(() => {
     loadStreak().then(setStreak).catch(() => {})
@@ -107,8 +138,6 @@ function Shell({ meEmail }: { meEmail: string }) {
     applyDirection(lang)
   }, [lang])
 
-  const tabActive = (match: string[]) => match.some((m) => location.pathname === m || location.pathname.startsWith(m + '/'))
-
   return (
     <div className="app">
       <a className="sr-only" href="#main-content">
@@ -118,93 +147,93 @@ function Shell({ meEmail }: { meEmail: string }) {
       <div className="cloud" style={{ width: 420, height: 420, bottom: -160, left: -100, animationDelay: '8s' }} aria-hidden />
       <TitleBar />
 
-      {!immersive && (
-        <header className="appbar">
-          <div className="appbar-user">
-            <button
-              className="avatar is-md"
-              style={{ background: 'linear-gradient(140deg, var(--brand), var(--brand-300))' }}
-              aria-label="打开导航菜单"
-              onClick={() => setDrawer(true)}
-            >
-              {(meEmail[0] || '知').toUpperCase()}
-            </button>
-            <span className="pill pill-streak" title={`连续学习 ${streak} 天`}>
-              <Flame size={14} aria-hidden /> {streak} 天
-            </span>
-            <button className="pill pill-points" title="今日学习得分" onClick={() => nav('/tasks')}>
-              <Zap size={14} aria-hidden /> {formatNumber(points)}
-            </button>
-          </div>
-          <div className="appbar-spacer" />
-          <div className="appbar-icons">
-            <IconButton label="查词" onClick={() => nav('/dict')}>
-              <Search size={17} />
-            </IconButton>
-            <IconButton label="复习统计" onClick={() => nav('/stats')}>
-              <BarChart3 size={17} />
-            </IconButton>
-            <IconButton label="每日任务" onClick={() => nav('/tasks')}>
-              <ListChecks size={17} />
-            </IconButton>
-            <IconButton label="学习排行榜" onClick={() => nav('/rank')}>
-              <Trophy size={17} />
-            </IconButton>
-            <span className="appbar-sep" aria-hidden />
-            <IconButton label={resolved === 'dark' ? '切换到浅色主题' : '切换到深色主题'} onClick={toggle}>
-              {resolved === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-            </IconButton>
-            <IconButton label="设置" onClick={() => nav('/settings')}>
-              <Settings size={17} />
-            </IconButton>
-          </div>
-        </header>
-      )}
+      <div className={`shell${navCollapsed ? ' is-collapsed' : ''}${immersive ? ' is-immersive' : ''}`}>
+        {!immersive && (
+          <SideNav
+            collapsed={navCollapsed}
+            onToggleCollapse={() =>
+              setNavCollapsed((v) => {
+                saveNavCollapsed(!v)
+                return !v
+              })
+            }
+            streak={streak}
+            points={points}
+          />
+        )}
 
-      <main className="appbody" id="main-content" tabIndex={-1}>
-        <div className={`appinner${immersive ? ' appinner-narrow' : ''}`}>
-          {!immersive && <NetBanner online={online} onRetry={() => window.location.reload()} />}
-          <ErrorBoundary onReset={() => nav('/today')}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/today" replace />} />
-              <Route path="/today" element={<Today />} />
-              <Route path="/courses" element={<Courses />} />
-              <Route path="/courses/:id" element={<CourseDetail />} />
-              <Route path="/vocab" element={<Vocab />} />
-              <Route path="/vocab/:key" element={<VocabStudy />} />
-              <Route path="/plan/:key" element={<Plan />} />
-              <Route path="/dict" element={<Dict />} />
-              <Route path="/exams" element={<Exams />} />
-              <Route path="/review" element={<ReviewSession />} />
-              <Route path="/stats" element={<Stats />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/rank" element={<Rank />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/today" replace />} />
-            </Routes>
-          </ErrorBoundary>
+        <div className="shell-main">
+          {!immersive && (
+            <header className="appbar">
+              <div className="appbar-user">
+                <button
+                  className="avatar is-md"
+                  style={{ background: 'linear-gradient(140deg, var(--brand), var(--brand-300))' }}
+                  aria-label="打开导航菜单"
+                  onClick={() => setDrawer(true)}
+                >
+                  {(meEmail[0] || '知').toUpperCase()}
+                </button>
+                <span className="pill pill-streak" data-tip={`连续学习 ${streak} 天`}>
+                  <Flame size={14} aria-hidden /> {streak} 天
+                </span>
+                <button className="pill pill-points" data-tip="今日学习得分" onClick={() => nav('/tasks')}>
+                  <Zap size={14} aria-hidden /> {formatNumber(points)}
+                </button>
+              </div>
+              <div className="appbar-spacer" />
+              <div className="appbar-icons">
+                <IconButton label="查词（Ctrl+K）" onClick={() => nav('/dict')}>
+                  <Search size={17} />
+                </IconButton>
+                <IconButton label="复习统计（Ctrl+5）" onClick={() => nav('/stats')}>
+                  <BarChart3 size={17} />
+                </IconButton>
+                <IconButton label="每日任务（Ctrl+6）" onClick={() => nav('/tasks')}>
+                  <ListChecks size={17} />
+                </IconButton>
+                <IconButton label="学习排行榜（Ctrl+7）" onClick={() => nav('/rank')}>
+                  <Trophy size={17} />
+                </IconButton>
+                <span className="appbar-sep" aria-hidden />
+                <IconButton label="键盘快捷键（Ctrl+/）" onClick={() => setHelpOpen(true)}>
+                  <Keyboard size={17} />
+                </IconButton>
+                <IconButton label={resolved === 'dark' ? '切换到浅色主题' : '切换到深色主题'} onClick={toggle}>
+                  {resolved === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+                </IconButton>
+                <IconButton label="设置（Ctrl+8）" onClick={() => nav('/settings')}>
+                  <Settings size={17} />
+                </IconButton>
+              </div>
+            </header>
+          )}
+
+          <main className="appbody" id="main-content" tabIndex={-1}>
+            <div className={`appinner${immersive ? ' appinner-narrow' : ''}`}>
+              {!immersive && <NetBanner online={online} onRetry={() => window.location.reload()} />}
+              <ErrorBoundary onReset={() => nav('/today')}>
+                <Routes>
+                  <Route path="/" element={<Navigate to={getLastRoute() ?? '/today'} replace />} />
+                  <Route path="/today" element={<Today />} />
+                  <Route path="/vocab" element={<Vocab />} />
+                  <Route path="/vocab/:key" element={<VocabStudy />} />
+                  <Route path="/plan/:key" element={<Plan />} />
+                  <Route path="/dict" element={<Dict />} />
+                  <Route path="/review" element={<ReviewSession />} />
+                  <Route path="/stats" element={<Stats />} />
+                  <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/rank" element={<Rank />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="*" element={<Navigate to="/today" replace />} />
+                </Routes>
+              </ErrorBoundary>
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
 
-      {!immersive && (
-        <nav className="tabbar" aria-label="主导航">
-          {TABS.map((tab) => {
-            const Icon = tab.icon
-            const active = tabActive(tab.match)
-            return (
-              <NavLink
-                key={tab.to}
-                to={tab.to}
-                className={`tab${active ? ' is-active' : ''}`}
-                aria-current={active ? 'page' : undefined}
-              >
-                <Icon size={20} aria-hidden />
-                <span>{t(tab.labelKey)}</span>
-              </NavLink>
-            )
-          })}
-        </nav>
-      )}
+      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <Drawer open={drawer} onClose={() => setDrawer(false)} side="left" title="知新 Zenew">
         <nav aria-label="功能导航" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)' }}>

@@ -31,6 +31,13 @@ interface Stats {
   progress: { label: string; value: number }[]
 }
 
+// 统计口径：只统计词书单词卡（co.kind='vocab' AND c.type='word'），
+// 历史遗留的非词书卡片与其复习记录仍留在库里，但不计入任何数字。
+const WORD_ONLY = `JOIN card c ON c.id = cs.card_id
+                   JOIN topic t ON t.id = c.topic_id
+                   JOIN course co ON co.id = t.course_id`
+const WORD_WHERE = `co.kind = 'vocab' AND c.type = 'word'`
+
 async function loadStats(): Promise<Stats> {
   const db = await getDb()
   const now = new Date().toISOString()
@@ -42,16 +49,16 @@ async function loadStats(): Promise<Stats> {
   }
   const [fresh, strong, solid, known, cut, learned, due, freshLeft, todayReviews, nearMastery, forecast, progress] =
     await Promise.all([
-      n('SELECT COUNT(*) AS n FROM card_state WHERE state=1 AND stability<1'),
-      n('SELECT COUNT(*) AS n FROM card_state WHERE state IN (1,3) AND stability>=1'),
-      n('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability<21'),
-      n('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=21'),
-      n('SELECT COUNT(*) AS n FROM card WHERE suspended=1'),
-      n('SELECT COUNT(*) AS n FROM card_state WHERE state!=0'),
-      n('SELECT COUNT(*) AS n FROM card_state cs JOIN card c ON c.id=cs.card_id WHERE c.suspended=0 AND cs.due<=? AND cs.state!=0', [now]),
-      n('SELECT COUNT(*) AS n FROM card c LEFT JOIN card_state cs ON cs.card_id=c.id WHERE c.suspended=0 AND cs.card_id IS NULL'),
-      n('SELECT COUNT(*) AS n FROM review_log WHERE reviewed_at>=?', [today.toISOString()]),
-      n('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=15 AND stability<21'),
+      n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_ONLY} WHERE ${WORD_WHERE} AND cs.state=1 AND cs.stability<1`),
+      n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_ONLY} WHERE ${WORD_WHERE} AND cs.state IN (1,3) AND cs.stability>=1`),
+      n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_ONLY} WHERE ${WORD_WHERE} AND cs.state=2 AND cs.stability<21`),
+      n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_ONLY} WHERE ${WORD_WHERE} AND cs.state=2 AND cs.stability>=21`),
+      n(`SELECT COUNT(*) AS n FROM card c JOIN topic t ON t.id = c.topic_id JOIN course co ON co.id = t.course_id WHERE ${WORD_WHERE} AND c.suspended=1`),
+      n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_ONLY} WHERE ${WORD_WHERE} AND cs.state!=0`),
+      n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_ONLY} WHERE ${WORD_WHERE} AND c.suspended=0 AND cs.due<=? AND cs.state!=0`, [now]),
+      n(`SELECT COUNT(*) AS n FROM card c JOIN topic t ON t.id = c.topic_id JOIN course co ON co.id = t.course_id LEFT JOIN card_state cs ON cs.card_id=c.id WHERE ${WORD_WHERE} AND c.suspended=0 AND cs.card_id IS NULL`),
+      n(`SELECT COUNT(*) AS n FROM review_log rl JOIN card c ON c.id = rl.card_id JOIN topic t ON t.id = c.topic_id JOIN course co ON co.id = t.course_id WHERE ${WORD_WHERE} AND rl.reviewed_at>=?`, [today.toISOString()]),
+      n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_ONLY} WHERE ${WORD_WHERE} AND cs.state=2 AND cs.stability>=15 AND cs.stability<21`),
       forecastDays(10),
       progressSeries(10),
     ])
@@ -115,7 +122,7 @@ export default function Stats() {
                 <BarChart3 size={20} />
               </div>
               <p>
-                目测有 <b>{formatNumber(data.nearMastery)}</b> 个知识点接近「熟识」，可以斩了吧？
+                目测有 <b>{formatNumber(data.nearMastery)}</b> 个单词接近「熟识」，可以斩了吧？
               </p>
               <Button variant="secondary" size="sm" icon={<Scissors size={13} />} onClick={() => nav('/review')}>
                 斩词模式
@@ -183,7 +190,7 @@ export default function Stats() {
               ))}
             </div>
             <div className="row-meta" style={{ marginTop: 'var(--sp-3)' }}>
-              合计 {formatNumber(states.reduce((n, x) => n + x.value, 0))} 个知识点 · 熟识 = 稳定期 ≥ 21 天
+              合计 {formatNumber(states.reduce((n, x) => n + x.value, 0))} 个单词 · 熟识 = 稳定期 ≥ 21 天
             </div>
           </Card>
 
@@ -256,7 +263,7 @@ export default function Stats() {
               )}</Tag>
             </div>
             <p className="row-meta" style={{ marginTop: 'var(--sp-3)' }}>
-              统计来自本地 SQLite 的复习日志与 FSRS 记忆状态，不依赖网络，不上传任何学习数据。
+              统计来自本地 SQLite 的复习日志与 FSRS 记忆状态，仅统计词书单词卡，不依赖网络，不上传任何学习数据。
             </p>
           </Card>
         </>

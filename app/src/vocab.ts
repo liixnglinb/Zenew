@@ -1,7 +1,7 @@
 // 英语词书模块：四本内置词书（四级/六级/高频词/基础英语）+ 全量查词
-// 数据经 CDN（lxlrwxs.top/zenew/dict/*.json），词条入本地库走与主题卡完全相同的 FSRS 复习循环。
-// 词书 = 一门本地课程（kind='vocab'，名字与词书一致）；25 词一组 = 一个 topic（知识点）。
-// 每词一张卡 type='word'：front=单词，back=紧凑 JSON（释义/音标/例句），由 ReviewSession 专属渲染。
+// 数据经 CDN（lxlrwxs.top/zenew/dict/*.json），词条入本地库走统一的 FSRS 复习循环。
+// 存储沿用 course/topic 两张表：一本词书 = course 一行（kind='vocab'，name 即词书名）；25 词一组 = topic 一行（title「第 N 组」）。
+// 每词一张 card（type='word'）：front=单词，back=紧凑 JSON（释义/音标/例句），由 ReviewSession 专属渲染。
 
 export interface VocabEntry {
   w: string
@@ -98,7 +98,7 @@ function squeeze(e: VocabEntry): string {
   return JSON.stringify({ m: e.m.slice(0, 1).map((x) => ({ p: x.p, t: x.t.slice(0, 60) })), s: [], uk: e.uk, us: e.us })
 }
 
-/** 查某词书已导入的词数（按课程名精确匹配） */
+/** 查某词书已导入的词数（按词书名精确匹配 course.name） */
 export async function vocabCourseStats(bookName: string, dbQuery: (sql: string, args?: unknown[]) => Promise<Record<string, unknown>[]>): Promise<{ courseId: number | null; cards: number; learned: number }> {
   const rows = await dbQuery('SELECT id FROM course WHERE name=? AND kind=?', [bookName, 'vocab'])
   if (!rows.length) return { courseId: null, cards: 0, learned: 0 }
@@ -114,11 +114,11 @@ export async function vocabCourseStats(bookName: string, dbQuery: (sql: string, 
   return { courseId, cards: Number(c[0]?.n ?? 0), learned: Number(c[0]?.learned ?? 0) }
 }
 
-const GROUP = 25 // 每组词数 = 一个知识点（复习混排按知识点打散）
+const GROUP = 25 // 每组词数（复习混排按分组打散，避免同组词连续出现）
 
 /**
  * 向本地库导入词书的一个区段 [from, to)。
- * 幂等：已存在课程只补缺词；每 25 词一组 topic（组名「第 N 组」）。
+ * 幂等：已存在词书只补缺词；每 25 词一组 topic（组名「第 N 组」）。
  * 返回本次新导入词数。
  */
 export async function importVocabRange(
@@ -174,7 +174,7 @@ export async function importVocabRange(
   return added
 }
 
-/** 查词 → 加入生词本（独立课程「生词本」，进同一复习循环） */
+/** 查词 → 加入生词本（独立词书「生词本」，进同一复习循环） */
 export async function addWordToNotebook(
   word: string,
   detail: IndexItem | null,

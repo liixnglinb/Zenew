@@ -6,9 +6,7 @@ import { getVersion } from '@tauri-apps/api/app'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import {
   BookOpen,
-  CalendarDays,
   Database,
-  GraduationCap,
   Languages,
   LogOut,
   RefreshCw,
@@ -43,6 +41,12 @@ import {
 
 const DEFAULT_SERVER = 'https://zenew-api.lxlrwxs.top'
 
+// 本地统计只算词书单词卡（co.kind='vocab' AND c.type='word'）
+const WORD_JOIN = `JOIN card c ON c.id = cs.card_id
+                   JOIN topic t ON t.id = c.topic_id
+                   JOIN course co ON co.id = t.course_id`
+const WORD_ONLY = `co.kind = 'vocab' AND c.type = 'word'`
+
 export default function SettingsPage() {
   const nav = useNavigate()
   const toast = useToast()
@@ -61,7 +65,7 @@ export default function SettingsPage() {
   const [me, setMe] = useState<Me | null>(null)
   const [meErr, setMeErr] = useState('')
   const [st, setSt] = useState<LocalSettings>(getSettings())
-  const [counts, setCounts] = useState<{ courses: number; topics: number; cards: number; logs: number } | null>(null)
+  const [counts, setCounts] = useState<{ cards: number; logs: number } | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsErr, setStatsErr] = useState('')
   const [streak, setStreak] = useState(0)
@@ -85,16 +89,14 @@ export default function SettingsPage() {
         const r = await db.select<{ n: number }[]>(sql)
         return Number(r[0]?.n || 0)
       }
-      const [courses, topics, cards, logs, learnedN, masteredN, streakN] = await Promise.all([
-        n('SELECT COUNT(*) AS n FROM course'),
-        n('SELECT COUNT(*) AS n FROM topic WHERE parent_id IS NOT NULL'),
-        n('SELECT COUNT(*) AS n FROM card'),
-        n('SELECT COUNT(*) AS n FROM review_log'),
-        n('SELECT COUNT(*) AS n FROM card_state WHERE state!=0'),
-        n('SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=21'),
+      const [cards, logs, learnedN, masteredN, streakN] = await Promise.all([
+        n(`SELECT COUNT(*) AS n FROM card c JOIN topic t ON t.id = c.topic_id JOIN course co ON co.id = t.course_id WHERE ${WORD_ONLY}`),
+        n(`SELECT COUNT(*) AS n FROM review_log rl JOIN card c ON c.id = rl.card_id JOIN topic t ON t.id = c.topic_id JOIN course co ON co.id = t.course_id WHERE ${WORD_ONLY}`),
+        n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_JOIN} WHERE ${WORD_ONLY} AND cs.state!=0`),
+        n(`SELECT COUNT(*) AS n FROM card_state cs ${WORD_JOIN} WHERE ${WORD_ONLY} AND cs.state=2 AND cs.stability>=21`),
         loadStreak(),
       ])
-      setCounts({ courses, topics, cards, logs })
+      setCounts({ cards, logs })
       setLearned(learnedN)
       setMastered(masteredN)
       setStreak(streakN)
@@ -246,26 +248,6 @@ export default function SettingsPage() {
           <div className="group-row-main">
             <div className="group-row-title">我的词书</div>
             <div className="group-row-sub">四本内置词书与生词本，导入即学</div>
-          </div>
-          <span className="group-row-value">›</span>
-        </button>
-        <button className="group-row is-link" onClick={() => nav('/courses')}>
-          <GraduationCap size={17} aria-hidden />
-          <div className="group-row-main">
-            <div className="group-row-title">我的课程</div>
-            <div className="group-row-sub">
-              {counts
-                ? `${formatNumber(counts.courses)} 门课程 · ${formatNumber(counts.topics)} 个知识点 · ${formatNumber(counts.cards)} 张卡`
-                : '教材导入 / 生成大纲'}
-            </div>
-          </div>
-          <span className="group-row-value">›</span>
-        </button>
-        <button className="group-row is-link" onClick={() => nav('/exams')}>
-          <CalendarDays size={17} aria-hidden />
-          <div className="group-row-main">
-            <div className="group-row-title">考试日历</div>
-            <div className="group-row-sub">按考试日期倒推每日新学量</div>
           </div>
           <span className="group-row-value">›</span>
         </button>
@@ -491,7 +473,7 @@ export default function SettingsPage() {
 
       <p className="today-hint fade-up">
         <span className="dot" aria-hidden />
-        知新 Zenew · 把课程变成科学调度的练习系统（学习数据全部保存在本机）
+        知新 Zenew · 把英语单词变成科学调度的练习系统（学习数据全部保存在本机）
       </p>
 
       <ConfirmDialog

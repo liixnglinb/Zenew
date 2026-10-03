@@ -308,7 +308,7 @@ export async function buildWordChoices(cardId: number, courseName: string, corre
     const db = await getDb()
     const rows = await db.select<{ back: string }[]>(
       `SELECT c.back FROM card c JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
-       WHERE co.name=? AND c.type='word' ORDER BY (c.id * 7919 + ?) % 100003 LIMIT 24`,
+       WHERE co.kind='vocab' AND co.name=? AND c.type='word' ORDER BY (c.id * 7919 + ?) % 100003 LIMIT 24`,
       [courseName, cardId]
     )
     const pool: { p: string; t: string }[] = []
@@ -349,12 +349,16 @@ export interface Activity {
   points: number
 }
 
-/** 今日学习活动（来自 review_log）：每张 +4 分，评分 ≥3 视为答对再 +2 */
+/** 今日学习活动（来自 review_log，只统计词书单词卡）：每张 +4 分，评分 ≥3 视为答对再 +2 */
 export async function todayActivity(): Promise<Activity> {
   try {
     const db = await getDb()
     const rows = await db.select<{ rating: number; reviewed_at: string }[]>(
-      'SELECT rating, reviewed_at FROM review_log WHERE reviewed_at >= ?',
+      `SELECT rl.rating, rl.reviewed_at FROM review_log rl
+       JOIN card c ON c.id = rl.card_id
+       JOIN topic t ON t.id = c.topic_id
+       JOIN course co ON co.id = t.course_id
+       WHERE co.kind = 'vocab' AND c.type = 'word' AND rl.reviewed_at >= ?`,
       [new Date(Date.now() - 2 * 86400000).toISOString()]
     )
     const today = localDayKey()
@@ -494,12 +498,17 @@ export function estimateMinutes(words: number): number {
 /* ============================================================
    首页/顶栏共用统计
    ============================================================ */
-/** 连续学习天数（今天没学不清零，从昨天起算，避免早上打开看到 0） */
+/** 连续学习天数（今天没学不清零，从昨天起算，避免早上打开看到 0）；只算词书单词卡 */
 export async function loadStreak(): Promise<number> {
   try {
     const db = await getDb()
     const days = await db.select<{ d: string }[]>(
-      "SELECT DISTINCT substr(reviewed_at,1,10) AS d FROM review_log ORDER BY d DESC LIMIT 90"
+      `SELECT DISTINCT substr(rl.reviewed_at,1,10) AS d FROM review_log rl
+       JOIN card c ON c.id = rl.card_id
+       JOIN topic t ON t.id = c.topic_id
+       JOIN course co ON co.id = t.course_id
+       WHERE co.kind = 'vocab' AND c.type = 'word'
+       ORDER BY d DESC LIMIT 90`
     )
     const daySet = new Set(days.map((r) => localDayKey(r.d + 'T00:00:00Z')))
     const cur = new Date()
@@ -527,24 +536,45 @@ export interface HomeStats {
   streak: number
 }
 
-/** 首页学习计划所需的聚合数据 */
+/** 首页学习计划所需的聚合数据（口径：词书单词卡 co.kind='vocab' AND c.type='word'） */
 export async function loadHomeStats(newLimit: number): Promise<HomeStats> {
   const db = await getDb()
   const now = new Date().toISOString()
   const due = await db.select<{ n: number }[]>(
-    'SELECT COUNT(*) AS n FROM card_state cs JOIN card c ON c.id=cs.card_id WHERE c.suspended=0 AND cs.due<=? AND cs.state!=0',
+    `SELECT COUNT(*) AS n FROM card_state cs
+     JOIN card c ON c.id = cs.card_id
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND c.suspended = 0 AND cs.due <= ? AND cs.state != 0`,
     [now]
   )
   const fresh = await db.select<{ n: number }[]>(
-    'SELECT COUNT(*) AS n FROM card c LEFT JOIN card_state cs ON cs.card_id=c.id WHERE c.suspended=0 AND cs.card_id IS NULL'
+    `SELECT COUNT(*) AS n FROM card c
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     LEFT JOIN card_state cs ON cs.card_id = c.id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND c.suspended = 0 AND cs.card_id IS NULL`
   )
   const learned = await db.select<{ n: number }[]>(
-    'SELECT COUNT(*) AS n FROM card_state WHERE state!=0'
+    `SELECT COUNT(*) AS n FROM card_state cs
+     JOIN card c ON c.id = cs.card_id
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND cs.state != 0`
   )
   const mastered = await db.select<{ n: number }[]>(
-    'SELECT COUNT(*) AS n FROM card_state WHERE state=2 AND stability>=21'
+    `SELECT COUNT(*) AS n FROM card_state cs
+     JOIN card c ON c.id = cs.card_id
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND cs.state = 2 AND cs.stability >= 21`
   )
-  const cut = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card WHERE suspended=1')
+  const cut = await db.select<{ n: number }[]>(
+    `SELECT COUNT(*) AS n FROM card c
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND c.suspended = 1`
+  )
   return {
     due: Number(due[0]?.n || 0),
     fresh: Math.min(Number(fresh[0]?.n || 0), newLimit),
@@ -555,12 +585,16 @@ export async function loadHomeStats(newLimit: number): Promise<HomeStats> {
   }
 }
 
-/** 未来 N 天复习预测（按到期日聚合） */
+/** 未来 N 天复习预测（按到期日聚合，只算词书单词卡） */
 export async function forecastDays(n = 10): Promise<{ label: string; count: number; overdue: boolean }[]> {
   try {
     const db = await getDb()
     const rows = await db.select<{ due: string }[]>(
-      'SELECT due FROM card_state cs JOIN card c ON c.id=cs.card_id WHERE c.suspended=0 AND cs.state!=0'
+      `SELECT cs.due FROM card_state cs
+       JOIN card c ON c.id = cs.card_id
+       JOIN topic t ON t.id = c.topic_id
+       JOIN course co ON co.id = t.course_id
+       WHERE co.kind = 'vocab' AND c.type = 'word' AND c.suspended = 0 AND cs.state != 0`
     )
     const buckets = new Array(n).fill(0) as number[]
     const overdueIdx = 0
@@ -585,12 +619,17 @@ export async function forecastDays(n = 10): Promise<{ label: string; count: numb
   }
 }
 
-/** 最近 N 天累计学习曲线（用于进展面积图） */
+/** 最近 N 天累计学习曲线（用于进展面积图）；只算词书单词卡 */
 export async function progressSeries(n = 10): Promise<{ label: string; value: number }[]> {
   try {
     const db = await getDb()
     const rows = await db.select<{ reviewed_at: string; card_id: number; rating: number }[]>(
-      'SELECT reviewed_at, card_id, rating FROM review_log ORDER BY reviewed_at ASC'
+      `SELECT rl.reviewed_at, rl.card_id, rl.rating FROM review_log rl
+       JOIN card c ON c.id = rl.card_id
+       JOIN topic t ON t.id = c.topic_id
+       JOIN course co ON co.id = t.course_id
+       WHERE co.kind = 'vocab' AND c.type = 'word'
+       ORDER BY rl.reviewed_at ASC`
     )
     const byDay = new Map<string, Set<number>>()
     for (const r of rows) {

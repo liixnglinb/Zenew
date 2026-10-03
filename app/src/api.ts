@@ -85,12 +85,6 @@ export interface Me {
   quota_tokens?: number
   balance_tokens?: number
 }
-export interface ChapterDef { title: string; topics: string[] }
-export interface CourseDef { id: string; name: string; chapters: ChapterDef[] }
-
-export const fetchCourses = (): Promise<{ version: number; courses: CourseDef[] }> =>
-  api('/courses', { auth: false })
-
 export const fetchMe = (): Promise<Me> => api('/me')
 
 export const login = (email: string, password: string) =>
@@ -99,22 +93,4 @@ export const login = (email: string, password: string) =>
 export const register = (email: string, password: string, inviteCode: string) =>
   api('/auth/register', { method: 'POST', body: { email, password, invite_code: inviteCode }, auth: false })
 
-export interface GenCard {
-  type: 'basic' | 'why' | 'choice'
-  front: string
-  back: string
-  explanation: string
-  choices?: string[]
-  answer_index?: number
-}
 
-export const genOutline = (title: string, num_chapters = 5) =>
-  api('/gen/outline', { method: 'POST', body: { title, num_chapters }, timeoutMs: 120000 })
-
-export const genCards = (
-  topic_title: string,
-  context: string | null,
-  n = 5,
-  types: string[] = ['basic', 'why', 'choice'],
-  extra: { course?: string; chapter?: string; avoid?: string[] } = {}
-) => api('/gen/cards', { method: 'POST', body: { topic_title, context, n, types, ...extra }, timeoutMs: 120000 })

@@ -1,6 +1,5 @@
 // 本地 SQLite：通过 tauri-plugin-sql，数据落应用数据目录 zenew.db
 import Database from '@tauri-apps/plugin-sql'
-import { fetchCourses } from './api'
 
 let dbInstance: Database | null = null
 
@@ -31,6 +30,12 @@ CREATE INDEX IF NOT EXISTS idx_topic_course ON topic(course_id, parent_id);
 CREATE INDEX IF NOT EXISTS idx_card_topic ON card(topic_id);
 `
 
+/* 词书存储结构（沿用建表；表名是历史遗留命名，业务与界面只认「词书 / 单词」）：
+   一本词书 = course 一行，kind='vocab'，name 即词书名（如「英语四级」「生词本」）；
+   每 25 个单词一组 = topic 一行，一个单词 = topic 下的一张 card（type='word'）。
+   应用内所有队列 / 统计 / 词云查询都用 co.kind='vocab' AND c.type='word' 过滤，
+   因此历史遗留的非词书数据行仍留在库里，但不会出现在任何界面。 */
+
 /** 本地日期 key（东八区等按本机时区，避免 UTC 8 小时错位） */
 export function localDayKey(d: Date | string = new Date()): string {
   const dt = typeof d === 'string' ? new Date(d) : d
@@ -59,11 +64,6 @@ async function doEnsureSchema(): Promise<void> {
     await db.execute(stmt)
   }
   await migrate(db)
-  const seeded = await db.select<{ value: string }[]>("SELECT value FROM _zenew_meta WHERE key='seed_version'")
-  if (seeded.length === 0) {
-    await seedCourses(db)
-    await db.execute("INSERT INTO _zenew_meta(key, value) VALUES('seed_version','1')")
-  }
 }
 
 /** 增量迁移：给已存在的库补列（SQLite 无 ALTER ... IF NOT EXISTS） */
@@ -78,16 +78,7 @@ async function migrate(db: Database): Promise<void> {
   await add('import_total', 'import_total INTEGER NOT NULL DEFAULT 0')
 }
 
-async function seedCourses(db: Database): Promise<void> {
-  const { courses } = await fetchCourses()
-  for (const c of courses) {
-    const r = await db.execute('INSERT INTO course(name, kind, created_at) VALUES(?,?,?)', [c.name, 'seed', nowIso()])
-    const courseId = Number(r.lastInsertId)
-    await insertOutline(db, courseId, c)
-  }
-}
-
-// 章节作为父知识点（parent_id NULL），知识点挂在章节下
+// 写入「章节 → 条目」两层主题（保留的通用大纲写入能力，供词书分组等场景复用）
 export async function insertOutline(db: Database, courseId: number, def: { chapters: { title: string; topics: string[] }[] }) {
   let sort = 0
   for (const ch of def.chapters) {
@@ -106,9 +97,6 @@ export function nowIso(): string {
 
 // ---- 查询辅助 ----
 
-export interface TopicRow {
-  id: number; course_id: number; parent_id: number | null; title: string; sort: number; status: string
-}
 export interface CardRow {
   id: number; topic_id: number; type: string; front: string; back: string; explanation: string
   choices_json: string | null; answer_index: number | null; suspended: number
@@ -117,13 +105,16 @@ export interface StateRow {
   card_id: number; due: string; stability: number; difficulty: number; elapsed_days: number
   scheduled_days: number; reps: number; lapses: number; state: number; last_review: string | null
 }
-export interface CourseRow { id: number; name: string; kind: string }
 export interface QueueItem extends CardRow {
-  topic_title: string; course_name: string
+  /** 词书内的分组名（topic.title，形如「第 1 组」） */
+  topic_title: string
+  /** 词书名（course.name，词书体系下即「英语四级」这类书名） */
+  course_name: string
   st: StateRow | null
 }
 
-// 待复习队列：到期卡片 + 从未学过的卡片（state 为空视为新卡）
+// 待复习队列：只取词书单词卡（co.kind='vocab' + card.type='word'），
+// 历史遗留的非词书卡仍留在库里但永远不会进入队列。
 export async function loadQueue(nowIsoStr: string, newLimit = 10): Promise<QueueItem[]> {
   const db = await getDb()
   const due = await db.select<QueueItem[]>(
@@ -134,7 +125,7 @@ export async function loadQueue(nowIsoStr: string, newLimit = 10): Promise<Queue
      JOIN topic t ON t.id = c.topic_id
      JOIN course co ON co.id = t.course_id
      JOIN card_state cs ON cs.card_id = c.id
-     WHERE c.suspended = 0 AND cs.due <= ? AND cs.state != 0
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND c.suspended = 0 AND cs.due <= ? AND cs.state != 0
      ORDER BY cs.due ASC LIMIT 60`,
     [nowIsoStr]
   )
@@ -146,7 +137,7 @@ export async function loadQueue(nowIsoStr: string, newLimit = 10): Promise<Queue
      JOIN topic t ON t.id = c.topic_id
      JOIN course co ON co.id = t.course_id
      LEFT JOIN card_state cs ON cs.card_id = c.id
-     WHERE c.suspended = 0 AND cs.card_id IS NULL
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND c.suspended = 0 AND cs.card_id IS NULL
      ORDER BY c.created_at ASC LIMIT ?`,
     [newLimit]
   )
@@ -180,7 +171,7 @@ export async function loadQueue(nowIsoStr: string, newLimit = 10): Promise<Queue
         },
       }
     })
-  // 混排：合并新卡与到期卡，相邻卡片尽量不同知识点（同知识点最多连续 2 张）
+  // 混排：合并新卡与到期卡，相邻卡片尽量不同分组（同分组最多连续 2 张）
   const merged = [...map(fresh as unknown[]), ...map(due as unknown[])]
   const out: QueueItem[] = []
   const pool = [...merged]
@@ -224,7 +215,7 @@ export async function clearSession(): Promise<void> {
   await db.execute('DELETE FROM _zenew_meta WHERE key=?', [SESSION_KEY])
 }
 
-/** 读取上次中断的会话；过期或卡已消失（被删课程等）则返回 null。
+/** 读取上次中断的会话；过期或卡已消失（被删词书等）则返回 null。
  *  容错：部分卡缺失时按存在的卡过滤并对 idx 重映射，而不是整体作废。 */
 export async function loadSession(): Promise<SavedSession | null> {
   const db = await getDb()
@@ -244,7 +235,10 @@ export async function loadSession(): Promise<SavedSession | null> {
     if (parsed.idx >= parsed.card_ids.length) return null
     const ph = parsed.card_ids.map(() => '?').join(',')
     const exist = await db.select<{ id: number }[]>(
-      `SELECT id FROM card WHERE id IN (${ph})`,
+      `SELECT c.id FROM card c
+       JOIN topic t ON t.id = c.topic_id
+       JOIN course co ON co.id = t.course_id
+       WHERE co.kind = 'vocab' AND c.type = 'word' AND c.id IN (${ph})`,
       parsed.card_ids
     )
     if (!exist.length) return null
@@ -279,7 +273,7 @@ export async function loadQueueByIds(cardIds: number[]): Promise<QueueItem[]> {
      JOIN topic t ON t.id = c.topic_id
      JOIN course co ON co.id = t.course_id
      LEFT JOIN card_state cs ON cs.card_id = c.id
-     WHERE c.id IN (${ph})`,
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND c.id IN (${ph})`,
     cardIds
   )
   const byId = new Map<number, QueueItem>()
@@ -306,7 +300,7 @@ export async function loadQueueByIds(cardIds: number[]): Promise<QueueItem[]> {
   return cardIds.map((id) => byId.get(id)).filter((x): x is QueueItem => !!x)
 }
 
-/** 按课程名取队列（词书「专学本书」）：到期卡 + 新卡，混排规则与 loadQueue 一致 */
+/** 按词书名取队列（词书「专学本书」）：到期卡 + 新卡，混排规则与 loadQueue 一致 */
 export async function loadQueueByCourse(courseName: string, nowIsoStr: string, newLimit = 10): Promise<QueueItem[]> {
   const db = await getDb()
   const due = await db.select<QueueItem[]>(
@@ -317,7 +311,7 @@ export async function loadQueueByCourse(courseName: string, nowIsoStr: string, n
      JOIN topic t ON t.id = c.topic_id
      JOIN course co ON co.id = t.course_id
      JOIN card_state cs ON cs.card_id = c.id
-     WHERE co.name = ? AND c.suspended = 0 AND cs.due <= ? AND cs.state != 0
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND co.name = ? AND c.suspended = 0 AND cs.due <= ? AND cs.state != 0
      ORDER BY cs.due ASC LIMIT 60`,
     [courseName, nowIsoStr]
   )
@@ -329,7 +323,7 @@ export async function loadQueueByCourse(courseName: string, nowIsoStr: string, n
      JOIN topic t ON t.id = c.topic_id
      JOIN course co ON co.id = t.course_id
      LEFT JOIN card_state cs ON cs.card_id = c.id
-     WHERE co.name = ? AND c.suspended = 0 AND cs.card_id IS NULL
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND co.name = ? AND c.suspended = 0 AND cs.card_id IS NULL
      ORDER BY c.created_at ASC LIMIT ?`,
     [courseName, newLimit]
   )

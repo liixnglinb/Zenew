@@ -6,6 +6,7 @@ import { getDb, loadQueue, loadSession, loadQueueByIds, saveSession, clearSessio
 import { schedule, R } from '../fsrs'
 import { buildWordChoices, morphology, similarWords, tone, buzz, wordVisual, getSettings, type ChoiceSet } from '../study'
 import { Progress, useToast } from '../ui'
+import { useHotkeys } from '../ui/desktop'
 
 type Phase = 'front' | 'answered'
 type DetailTab = 'sense' | 'sent' | 'morph' | 'similar'
@@ -74,6 +75,21 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
   const [resumed, setResumed] = useState(false)
   const committing = useRef(false)
   const [commitErr, setCommitErr] = useState('')
+  /** 桌面右键菜单（朗读 / 复制 / 词根 / 斩） */
+  const [ctx, setCtx] = useState<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    if (!ctx) return
+    const close = () => setCtx(null)
+    window.addEventListener('click', close)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [ctx])
 
   const enterFs = () => {
     if (isTauri()) getCurrentWindow().setFullscreen(true).catch(() => {})
@@ -136,9 +152,8 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
   }, [])
 
   const item = queue[idx]
-  const isWord = item?.type === 'word'
-  const wordBack = useMemo(() => (item && item.type === 'word' ? parseWordBack(item.back) : null), [item])
-  const morph = useMemo(() => (item && item.type === 'word' ? morphology(item.front) : null), [item])
+  const wordBack = useMemo(() => (item ? parseWordBack(item.back) : null), [item])
+  const morph = useMemo(() => (item ? morphology(item.front) : null), [item])
   const visual = useMemo(() => wordVisual(item?.front || 'A'), [item])
   const firstSense = wordBack?.m?.[0]
 
@@ -154,24 +169,20 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
     setDetailTab('sense')
     setCommitErr('')
     shownAt.current = Date.now()
-    if (item.type === 'word') {
-      const back = parseWordBack(item.back)
-      const sense = back?.m?.[0]
-      if (sense?.t) {
-        buildWordChoices(item.id, item.course_name, sense).then(setChoices).catch(() => setChoices(null))
-      } else {
-        setChoices(null)
-      }
-      if (getSettings().sound) setTimeout(() => speak(item.front), 220)
+    const back = parseWordBack(item.back)
+    const sense = back?.m?.[0]
+    if (sense?.t) {
+      buildWordChoices(item.id, item.course_name, sense).then(setChoices).catch(() => setChoices(null))
     } else {
       setChoices(null)
     }
+    if (getSettings().sound) setTimeout(() => speak(item.front), 220)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id])
 
   /* ---- 答对后异步取形近词（用于「和 xxx 搞混了？」辨析） ---- */
   useEffect(() => {
-    if (phase !== 'answered' || !isWord || !item) return
+    if (phase !== 'answered' || !item) return
     similarWords(item.front).then(setSimilar).catch(() => setSimilar([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, item?.id])
@@ -296,10 +307,60 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
     })()
   }
 
+  /**
+   * 桌面键盘操作（学习页全键盘可用）：
+   * 1-4 选答案 / 空格 翻面或继续 / Enter 继续 / ← 回看上一词 / → 继续 / S 斩 / P 朗读
+   * Esc 由外壳统一处理（返回上一页），此处不重复绑定。
+   */
+  const hasChoices = !!choices && choices.choices.length > 0
+  useHotkeys(
+    useMemo(
+      () => ({
+        '1': () => {
+          if (hasChoices && phase === 'front') pickChoice(0)
+        },
+        '2': () => {
+          if (hasChoices && phase === 'front') pickChoice(1)
+        },
+        '3': () => {
+          if (hasChoices && phase === 'front') pickChoice(2)
+        },
+        '4': () => {
+          if (hasChoices && phase === 'front') pickChoice(3)
+        },
+        space: () => {
+          if (phase === 'front') {
+            setPhase('answered')
+            return
+          }
+          if (hasChoices) advance()
+        },
+        enter: () => {
+          if (phase === 'front') {
+            setPhase('answered')
+            return
+          }
+          if (hasChoices) advance()
+        },
+        arrowleft: () => {
+          if (prevCard) toast.info(`${prevCard.w}：${prevCard.m}`)
+        },
+        arrowright: () => {
+          if (phase !== 'front' && hasChoices) advance()
+        },
+        s: () => cutCard(),
+        p: () => {
+          if (item) speak(item.front)
+        },
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [hasChoices, phase, prevCard, item]
+    )
+  )
+
   /** 记录「上一词」条 */
   useEffect(() => {
     if (phase !== 'answered' || !item) return
-    if (item.type !== 'word') return
     const sense = parseWordBack(item.back)?.m?.[0]
     if (sense?.t) setPrevCard({ w: item.front, m: `${sense.p ? sense.p + '. ' : ''}${sense.t}` })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -322,10 +383,8 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
         return
       }
       if (e.key === 's' || e.key === 'S') {
-        if (item.type === 'word') {
-          e.preventDefault()
-          speak(item.front)
-        }
+        e.preventDefault()
+        speak(item.front)
         return
       }
       if (phase === 'front' && hasChoices && ['1', '2', '3', '4'].includes(e.key)) {
@@ -370,7 +429,7 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
             {queue.length === 0 && !done ? '暂时没有待学的卡片' : '今日训练完成'}
           </div>
           <div className="muted" style={{ marginTop: 8 }}>
-            {queue.length === 0 && !done ? '去词书挑一本开始，或导入教材生成练习卡' : '学习记录已保存，下次打开接着安排'}
+            {queue.length === 0 && !done ? '去词书挑一本开始学习，或到查词页收藏生词' : '学习记录已保存，下次打开接着安排'}
           </div>
           {done && (
             <div className="card" style={{ marginTop: 22, display: 'inline-flex', gap: 22, alignItems: 'baseline', padding: '18px 26px' }}>
@@ -405,7 +464,61 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
   const isRight = picked === right
 
   return (
-    <div className={`study${fs ? ' review-fs' : ''}`}>
+    <div
+      className={`study${fs ? ' review-fs' : ''}`}
+      onContextMenu={(e) => {
+        if (!item) return
+        e.preventDefault()
+        setCtx({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 220) })
+      }}
+    >
+      {ctx && item && (
+        <div className="ctx-menu" style={{ left: ctx.x, top: ctx.y }} role="menu" aria-label="单词操作">
+          <div className="ctx-title">{item.front}</div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              speak(item.front)
+              setCtx(null)
+            }}
+          >
+            <Volume2 size={15} aria-hidden /> 朗读单词（P）
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              void navigator.clipboard?.writeText(item.front).catch(() => {})
+              toast.success('已复制单词')
+              setCtx(null)
+            }}
+          >
+            <Check size={15} aria-hidden /> 复制单词
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setShowDetail(true)
+              setCtx(null)
+            }}
+          >
+            <Sparkles size={15} aria-hidden /> 词根词缀与形近词
+          </button>
+          <div className="ctx-sep" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setCtx(null)
+              cutCard()
+            }}
+          >
+            <Scissors size={15} aria-hidden /> 斩掉这个词（S）
+          </button>
+        </div>
+      )}
       {/* 顶部：返回 + 上一词 + 进度 + 贴纸 */}
       <div className="study-top">
         <button className="icon-btn" title="退出学习（Esc）" onClick={() => { exitFs(); nav('/today') }}>
@@ -453,7 +566,7 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
         {/* 媒体记忆卡 */}
         <div className="media-card" style={{ background: `linear-gradient(150deg, ${visual.from}, ${visual.to})` }}>
           <span className="media-letter">{visual.glyph}</span>
-          <span className="media-tag">{isWord ? 'WORD' : item.type === 'basic' ? 'RECALL' : item.type === 'why' ? 'WHY' : 'CHOICE'}</span>
+          <span className="media-tag">WORD</span>
           <span className="media-caption">
             {item.course_name} · {item.topic_title}
           </span>
@@ -465,23 +578,17 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
           )}
         </div>
 
-        {/* 单词 / 题干 */}
-        {isWord ? (
-          <div className="study-word">
-            <div className="study-word-text">{item.front}</div>
-            <div className="study-phones">
-              {wordBack?.uk && <span className="study-phone">美 /{wordBack.us || wordBack.uk}/</span>}
-              {wordBack?.uk && wordBack?.us && wordBack.uk !== wordBack.us && <span className="study-phone">英 /{wordBack.uk}/</span>}
-              <button className="word-speak" title="朗读 (S)" onClick={() => speak(item.front)}>
-                <Volume2 size={15} />
-              </button>
-            </div>
+        {/* 单词 */}
+        <div className="study-word">
+          <div className="study-word-text">{item.front}</div>
+          <div className="study-phones">
+            {wordBack?.uk && <span className="study-phone">美 /{wordBack.us || wordBack.uk}/</span>}
+            {wordBack?.uk && wordBack?.us && wordBack.uk !== wordBack.us && <span className="study-phone">英 /{wordBack.uk}/</span>}
+            <button className="word-speak" title="朗读 (S)" onClick={() => speak(item.front)}>
+              <Volume2 size={15} />
+            </button>
           </div>
-        ) : (
-          <div className="study-word">
-            <div className="review-front">{item.front}</div>
-          </div>
-        )}
+        </div>
 
         {/* 例句 */}
         {wordBack?.s?.[0] && (
@@ -559,7 +666,7 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
               </button>
             )}
 
-            {isWord && wordBack && !showDetail && (
+            {wordBack && !showDetail && (
               <div className="detail-card">
                 <div className="detail-tabs">
                   {(
@@ -579,17 +686,12 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
               </div>
             )}
 
-            {!isWord && (
-              <>
-                <div className="review-back">
-                  <span className="muted">Answer</span>
-                  {item.back}
-                </div>
-                <div className="explain-box">
-                  <b>Why</b>
-                  {item.explanation || '—'}
-                </div>
-              </>
+            {/* 兼容 back 不是词条 JSON 的极端情况：直接原样展示 */}
+            {!wordBack && (
+              <div className="review-back">
+                <span className="muted">Answer</span>
+                {item.back}
+              </div>
             )}
 
             {commitErr && <div className="error-text" style={{ marginTop: 10 }}>{commitErr}</div>}

@@ -1,10 +1,9 @@
 // 调整计划：每日组数 ↔ 完成天数 ↔ 预计完成时间 / 每日用时 实时联动
-// 若有考试日期，无法在考前完成档位会标为不可选，并推荐最小可行组数。
 // 界面全部来自 src/ui 组件库（PageHeader / Card / DataTable / Button / Tag / Progress / ConfirmDialog / useToast）
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, CalendarClock, Check, Clock, ListChecks, RotateCcw } from 'lucide-react'
-import { getDb, localDayKey } from '../db'
+import { CalendarClock, Check, Clock, ListChecks, RotateCcw } from 'lucide-react'
+import { getDb } from '../db'
 import { WORD_BOOKS, vocabCourseStats } from '../vocab'
 import { getPlan, savePlan, WORDS_PER_GROUP, estimateMinutes } from '../study'
 import { formatDate, formatNumber } from '../lib/format'
@@ -37,7 +36,6 @@ interface PlanRow extends Record<string, unknown> {
   groups: number
   perDay: number
   days: number
-  feasible: boolean
   recommended: boolean
 }
 
@@ -51,29 +49,14 @@ export default function Plan() {
   const book = WORD_BOOKS.find((b) => b.key === key) || WORD_BOOKS[0]
   const [groups, setGroups] = useState(getPlan(key).groups)
 
-  /** 词书学习进度 + 该词书对应的最近考试（作为完成期限约束） */
-  const { data, loading, error, reload } = useAsync<{ stats: { cards: number; learned: number }; deadline: number | null }>(
+  /** 词书学习进度（用于推算每日组数 → 完成天数） */
+  const { data, loading, error, reload } = useAsync<{ stats: { cards: number; learned: number } }>(
     async () => {
-      const db = await getDb()
       const s = await vocabCourseStats(book.name, async (sql, args) => {
         const d = await getDb()
         return d.select<Record<string, unknown>[]>(sql, args as never[])
       })
-      let deadline: number | null = null
-      try {
-        const rows = await db.select<{ exam_date: string }[]>(
-          'SELECT e.exam_date FROM exam e JOIN course c ON c.id=e.course_id WHERE c.name=? AND e.exam_date>=? ORDER BY e.exam_date ASC LIMIT 1',
-          [book.name, localDayKey()]
-        )
-        if (rows.length) {
-          deadline = Math.round(
-            (new Date(rows[0].exam_date.slice(0, 10) + 'T00:00:00').getTime() - new Date(localDayKey() + 'T00:00:00').getTime()) / 86400000
-          )
-        }
-      } catch {
-        deadline = null
-      }
-      return { stats: { cards: s.cards, learned: s.learned }, deadline }
+      return { stats: { cards: s.cards, learned: s.learned } }
     },
     [book.name]
   )
@@ -83,7 +66,6 @@ export default function Plan() {
   }, [key])
 
   const stats = data?.stats ?? null
-  const deadline = data?.deadline ?? null
 
   const totalWords = BOOK_TOTALS[book.key] ?? stats?.cards ?? 0
   const learned = stats?.learned ?? 0
@@ -93,12 +75,11 @@ export default function Plan() {
       [1, 2, 3, 4, 5].map((g) => {
         const perDay = g * WORDS_PER_GROUP
         const days = remaining > 0 ? Math.ceil(remaining / perDay) : 0
-        const feasible = deadline === null || days <= deadline
-        return { groups: g, perDay, days, feasible, recommended: false }
+        return { groups: g, perDay, days, recommended: false }
       }),
-    [remaining, deadline]
+    [remaining]
   )
-  const recommended = rows.find((r) => r.feasible && r.days > 0)?.groups ?? groups
+  const recommended = rows.find((r) => r.days > 0)?.groups ?? groups
   const tableRows: PlanRow[] = rows.map((r) => ({ ...r, recommended: r.groups === recommended }))
   const current = rows.find((r) => r.groups === groups) || rows[0]
   const finish = new Date(Date.now() + Math.max(0, current.days) * 86400000)
@@ -113,7 +94,7 @@ export default function Plan() {
           size="xs"
           variant={r.groups === groups ? 'primary' : 'outline'}
           aria-pressed={r.groups === groups}
-          title={r.feasible ? `每日 ${formatNumber(r.perDay)} 词` : '按这个节奏无法在考试前学完'}
+          title={`每日 ${formatNumber(r.perDay)} 词`}
           onClick={() => setGroups(r.groups)}
         >
           <span className="inline gap-2">
@@ -152,15 +133,7 @@ export default function Plan() {
       align: 'end',
       render: (r) => (
         <span className="inline gap-2" style={{ justifyContent: 'flex-end' }}>
-          {r.feasible ? (
-            <Tag tone="success" icon={<Check size={11} aria-hidden />}>
-              考前可完成
-            </Tag>
-          ) : (
-            <Tag tone="danger" icon={<AlertTriangle size={11} aria-hidden />}>
-              考前无法完成
-            </Tag>
-          )}
+          {r.days > 0 ? <Tag tone="neutral">可选</Tag> : <Tag tone="success" icon={<Check size={11} aria-hidden />}>已学完</Tag>}
           {r.recommended && r.days > 0 && (
             <Tag tone="brand" icon={<CalendarClock size={11} aria-hidden />}>
               推荐
@@ -188,7 +161,7 @@ export default function Plan() {
         }
       />
 
-      {loading && <LoadingState rows={3} title="正在读取词书进度与考试安排" />}
+      {loading && <LoadingState rows={3} title="正在读取词书进度" />}
 
       {!loading && error && (
         <ErrorState
@@ -233,11 +206,6 @@ export default function Plan() {
                   <span className="row-meta">
                     已学 {formatNumber(learned)} / {formatNumber(totalWords)} 词 · 剩余 {formatNumber(remaining)} 词
                   </span>
-                  {deadline !== null && (
-                    <Tag tone="warning" icon={<CalendarClock size={11} aria-hidden />}>
-                      距考试 {formatNumber(deadline)} 天
-                    </Tag>
-                  )}
                 </div>
               </div>
             </div>
@@ -278,31 +246,20 @@ export default function Plan() {
                   {formatNumber(estimateMinutes(current.perDay))} 分钟
                 </b>
               </span>
-              {deadline !== null && (
-                <span className="inline gap-2">
-                  <span className="row-meta">距考试</span>
-                  <b className="tnum" style={{ fontSize: 'var(--fs-lg)' }}>
-                    {formatNumber(deadline)} 天
-                  </b>
-                </span>
-              )}
             </div>
             <div className="inline gap-2" style={{ marginTop: 'var(--sp-3)' }}>
               {current.days === 0 ? (
                 <Tag tone="success" icon={<Check size={11} aria-hidden />}>
                   这本词书已经学完了
                 </Tag>
-              ) : current.feasible ? (
-                <Tag tone="success" icon={<Check size={11} aria-hidden />}>
-                  考前可完成：按这个节奏就行
-                </Tag>
               ) : (
-                <Tag tone="danger" icon={<AlertTriangle size={11} aria-hidden />}>
-                  考前来不及：建议加大每日组数（推荐 {formatNumber(recommended)} 组）
+                <Tag tone="success" icon={<Check size={11} aria-hidden />}>
+                  按这个节奏 {formatNumber(current.days)} 天学完
                 </Tag>
               )}
               <span className="row-meta">
                 每日 {formatNumber(current.perDay)} 词 · 每组 {WORDS_PER_GROUP} 词、每题约 25 秒估算
+                {current.days > 0 ? ` · 建议 ${formatNumber(recommended)} 组` : ''}
               </span>
             </div>
           </Card>

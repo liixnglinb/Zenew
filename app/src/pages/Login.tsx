@@ -70,7 +70,7 @@ export default function Login({ onLogin }: { onLogin: (me: { email: string }) =>
           </div>
         </div>
         <p className="auth-sub">
-          <Sparkles size={12} aria-hidden /> 把课程变成科学调度的练习系统
+          <Sparkles size={12} aria-hidden /> 把英语单词变成科学调度的练习系统
         </p>
 
         <Card>

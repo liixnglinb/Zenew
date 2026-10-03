@@ -1,0 +1,168 @@
+/* ============================================================
+   桌面层（desktop.css）
+   ------------------------------------------------------------
+   这一层是「桌面软件专项优化」的样式：左侧固定导航外壳、利用窗口宽度的
+   多栏工具、桌面密度、快捷键弹窗、右键菜单与悬停提示，以及从底部 Dock
+   切换到侧栏后必须同步的回归项。
+   加载顺序：index.css（设计系统 v6）→ desktop.css（本层覆盖）
+   ============================================================ */
+:root {
+  --side-w: 216px;
+  --side-w-collapsed: 72px;
+  /* 底部 Dock 已由左侧导航取代，不再为它预留高度 */
+  --dock-h: 0px;
+  --dock-space: var(--sp-8);
+}
+
+/* ---------- 外壳：侧栏 + 主区 ---------- */
+.shell {
+  display: grid;
+  grid-template-columns: var(--side-w) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+.shell.is-collapsed { grid-template-columns: var(--side-w-collapsed) minmax(0, 1fr); }
+/* 沉浸页（学习会话）：隐藏侧栏，内容占满 */
+.shell.is-immersive { grid-template-columns: minmax(0, 1fr); }
+.shell-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.shell-body { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-gutter: stable; }
+
+/* ---------- 左侧固定导航 ---------- */
+.sidenav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-3) var(--sp-3);
+  background: var(--glass-strong);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset -1px 0 0 var(--glass-border);
+  overflow: hidden;
+}
+.sidenav-brand { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-1) var(--sp-2) var(--sp-4); }
+.sidenav-logo {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: var(--fs-base); font-weight: var(--fw-black); color: #fff;
+  background: linear-gradient(140deg, var(--brand), var(--brand-hi));
+  box-shadow: var(--sh-brand), var(--sh-inset);
+}
+.sidenav-brand-text { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+.sidenav-brand-text b { font-size: var(--fs-md); font-weight: var(--fw-black); letter-spacing: -.02em; color: var(--ink-1); }
+.sidenav-brand-text small { font-family: var(--mono); font-size: 9px; letter-spacing: .18em; color: var(--brand); }
+.sidenav-list { list-style: none; display: flex; flex-direction: column; gap: 3px; flex: 1; min-height: 0; overflow-y: auto; }
+.sidenav-item {
+  position: relative; display: flex; align-items: center; gap: var(--sp-3);
+  padding: 10px var(--sp-3); border-radius: var(--r-sm); text-decoration: none;
+  color: var(--ink-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.sidenav-item svg { flex-shrink: 0; }
+.sidenav-item:hover { background: var(--n-1); color: var(--brand); }
+.sidenav-item.is-active { background: var(--brand-soft); color: var(--brand-ink); }
+.sidenav-item.is-active::before {
+  content: ""; position: absolute; left: -1px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--brand);
+}
+.sidenav-label { flex: 1; min-width: 0; }
+.sidenav-key {
+  font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+  background: var(--n-1); border-radius: 5px; padding: 1px 5px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.sidenav-item.is-active .sidenav-key { color: var(--brand); background: transparent; box-shadow: none; }
+.sidenav.is-collapsed .sidenav-item { justify-content: center; padding: 11px 0; }
+.sidenav-foot { display: flex; flex-direction: column; gap: 5px; padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+.sidenav-stat { display: flex; align-items: center; gap: 7px; padding: 4px var(--sp-2); font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--amber-ink); }
+.sidenav-stat.is-points { color: var(--brand-ink); }
+.sidenav.is-collapsed .sidenav-stat { justify-content: center; }
+.sidenav-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px;
+  border: none; border-radius: var(--r-sm); background: var(--n-1); color: var(--ink-2);
+  font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.sidenav-toggle:hover { background: var(--brand-soft); color: var(--brand); }
+
+/* ---------- 内容宽度与多栏工具（桌面利用宽度） ---------- */
+.appinner { max-width: 1180px; margin: 0 auto; padding-bottom: var(--sp-8); }
+.appinner-narrow { max-width: 720px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4); align-items: start; }
+.grid-2.is-aside { grid-template-columns: minmax(0, 1fr) 340px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); align-items: start; }
+@media (max-width: 1180px) {
+  .grid-2, .grid-2.is-aside, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- 去 Dock 后的回归项 ---------- */
+.toast-host { bottom: var(--sp-6); }
+.study { padding-bottom: var(--sp-8); }
+.study-body { min-height: calc(100vh - 200px); }
+.action-bar { bottom: var(--sp-5); }
+
+/* ---------- 桌面密度：更紧凑，一屏更多信息 ---------- */
+@media (min-width: 1101px) {
+  .card { padding: var(--sp-4) var(--sp-5); }
+  .row { padding: var(--sp-2) var(--sp-4); }
+  .group-row { padding: var(--sp-3) var(--sp-4); min-height: 52px; }
+  .metric { padding: var(--sp-3) var(--sp-4); }
+  .dense-list .row { padding: 6px var(--sp-3); }
+  .wordcloud { height: 246px; }
+}
+@media (min-width: 1101px) and (max-height: 800px) {
+  .wordcloud { height: 212px; }
+  .home-hero { padding: var(--sp-4) var(--sp-4) var(--sp-3); }
+  .plan-body { margin-top: var(--sp-3); }
+}
+
+/* ---------- 快捷键说明弹窗 ---------- */
+.shortcuts { width: min(620px, 94vw); }
+.shortcuts-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.shortcuts-group + .shortcuts-group { margin-top: var(--sp-5); }
+.shortcuts-list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.shortcuts-list li {
+  display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: var(--sp-3);
+  align-items: center; padding: 7px var(--sp-2); border-radius: var(--r-xs);
+}
+.shortcuts-list li:nth-child(odd) { background: var(--n-1); }
+.shortcuts-keys { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: var(--fs-micro); color: var(--ink-3); }
+.shortcuts-desc { font-size: var(--fs-sm); color: var(--ink-2); }
+@media (max-width: 560px) { .shortcuts-list li { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+
+/* ---------- 右键上下文菜单 ---------- */
+.ctx-menu {
+  position: fixed; z-index: 120; min-width: 178px; padding: 6px;
+  border-radius: var(--r-md); background: var(--card); box-shadow: var(--sh-3);
+  animation: fadeUp var(--dur-fast) var(--ease-out);
+}
+.ctx-menu button {
+  width: 100%; display: flex; align-items: center; gap: var(--sp-3);
+  padding: 9px var(--sp-3); border: none; background: none; border-radius: var(--r-xs);
+  font-size: var(--fs-sm); color: var(--ink); text-align: left;
+}
+.ctx-menu button:hover { background: var(--brand-soft); color: var(--brand); }
+.ctx-menu .ctx-sep { height: 1px; margin: 5px 0; background: var(--line); }
+.ctx-menu .ctx-title { padding: 6px var(--sp-3) 4px; font-size: var(--fs-micro); color: var(--ink-3); }
+
+/* ---------- 悬停提示（纯 CSS，仅鼠标设备） ---------- */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: calc(100% + 7px);
+  transform: translateX(-50%) translateY(3px);
+  padding: 5px 9px; border-radius: 8px; background: var(--navy); color: #fff;
+  font-size: var(--fs-micro); font-weight: var(--fw-medium); white-space: nowrap;
+  opacity: 0; pointer-events: none; z-index: 130;
+  transition: opacity var(--dur-fast), transform var(--dur-fast);
+}
+[data-tip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (hover: none) { [data-tip]::after { display: none; } }
+
+/* ---------- 窄窗口：侧栏自动收成图标列 ---------- */
+@media (max-width: 900px) {
+  :root { --side-w: 72px; }
+  .sidenav-label, .sidenav-key, .sidenav-brand-text { display: none; }
+  .sidenav-item { justify-content: center; }
+}

@@ -80,15 +80,25 @@ interface RankData {
   peers: Peer[]
 }
 
-/** 统计口径与迁移前一致：赛季分 = 近 30 天复习数 × 6 + 已学词数 × 2 */
+/** 统计口径与迁移前一致（只算词书单词卡）：赛季分 = 近 30 天复习数 × 6 + 已学词数 × 2 */
 async function loadRank(): Promise<RankData> {
   const db = await getDb()
   const rows = await db.select<{ n: number }[]>(
-    'SELECT COUNT(*) AS n FROM review_log WHERE reviewed_at >= ?',
+    `SELECT COUNT(*) AS n FROM review_log rl
+     JOIN card c ON c.id = rl.card_id
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND rl.reviewed_at >= ?`,
     [new Date(Date.now() - 30 * 86400000).toISOString()]
   )
   const reviews = Number(rows[0]?.n || 0)
-  const l = await db.select<{ n: number }[]>('SELECT COUNT(*) AS n FROM card_state WHERE state!=0')
+  const l = await db.select<{ n: number }[]>(
+    `SELECT COUNT(*) AS n FROM card_state cs
+     JOIN card c ON c.id = cs.card_id
+     JOIN topic t ON t.id = c.topic_id
+     JOIN course co ON co.id = t.course_id
+     WHERE co.kind = 'vocab' AND c.type = 'word' AND cs.state != 0`
+  )
   const learned = Number(l[0]?.n || 0)
   const score = reviews * REVIEW_WEIGHT + learned * LEARNED_WEIGHT
   const streak = await loadStreak().catch(() => 0)

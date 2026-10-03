@@ -1,13 +1,11 @@
-// 单词首页：知识云（词云） + 学习计划卡（新学/复习）+ 运营位 + 断点续学
-// 计划卡支持拖动排序（顺序本地持久化），全部数据来自本地库。
+// 单词首页：单词云（词云） + 学习计划卡（新学/复习）+ 运营位 + 断点续学
+// 计划卡支持拖动排序（顺序本地持久化），全部数据来自本地库（只统计词书单词卡）。
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BarChart3,
   Bell,
   BookOpen,
-  CalendarDays,
-  FileUp,
   GripVertical,
   MoreHorizontal,
   Play,
@@ -17,7 +15,6 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { getDb, loadSession } from '../db'
-import { daysUntil } from './Exams'
 import { WORD_BOOKS } from '../vocab'
 import { getPlan, getSettings, loadHomeStats, WORDS_PER_GROUP, loadStreak, estimateMinutes, type HomeStats } from '../study'
 import { formatNumber, formatPercent } from '../lib/format'
@@ -72,7 +69,6 @@ interface HomeData {
   books: BookRow[]
   stats: HomeStats
   words: { w: string; tier: CloudTier }[]
-  exam: { title: string; days: number } | null
   resume: { idx: number; total: number } | null
 }
 
@@ -213,9 +209,9 @@ async function loadHome(): Promise<HomeData> {
 
   const rows = await db.select<{ name: string; cards: number; learned: number; due: number }[]>(
     `SELECT co.name,
-            (SELECT COUNT(*) FROM card c JOIN topic t ON t.id=c.topic_id WHERE t.course_id=co.id AND c.suspended=0) AS cards,
-            (SELECT COUNT(*) FROM card c JOIN topic t ON t.id=c.topic_id JOIN card_state s ON s.card_id=c.id WHERE t.course_id=co.id AND c.suspended=0 AND s.state!=0) AS learned,
-            (SELECT COUNT(*) FROM card c JOIN topic t ON t.id=c.topic_id JOIN card_state s ON s.card_id=c.id WHERE t.course_id=co.id AND c.suspended=0 AND s.state!=0 AND s.due<=?) AS due
+            (SELECT COUNT(*) FROM card c JOIN topic t ON t.id=c.topic_id WHERE t.course_id=co.id AND c.type='word' AND c.suspended=0) AS cards,
+            (SELECT COUNT(*) FROM card c JOIN topic t ON t.id=c.topic_id JOIN card_state s ON s.card_id=c.id WHERE t.course_id=co.id AND c.type='word' AND c.suspended=0 AND s.state!=0) AS learned,
+            (SELECT COUNT(*) FROM card c JOIN topic t ON t.id=c.topic_id JOIN card_state s ON s.card_id=c.id WHERE t.course_id=co.id AND c.type='word' AND c.suspended=0 AND s.state!=0 AND s.due<=?) AS due
      FROM course co WHERE co.kind='vocab' ORDER BY co.id`,
     [new Date().toISOString()]
   )
@@ -259,8 +255,11 @@ async function loadHome(): Promise<HomeData> {
   let words: { w: string; tier: CloudTier }[] = []
   try {
     const learned = await db.select<{ front: string; last_review: string | null; due: string | null }[]>(
-      `SELECT c.front, s.last_review, s.due FROM card c JOIN card_state s ON s.card_id=c.id
-       WHERE c.suspended=0 AND s.state!=0 AND c.type='word'
+      `SELECT c.front, s.last_review, s.due FROM card c
+       JOIN topic t ON t.id=c.topic_id
+       JOIN course co ON co.id=t.course_id
+       JOIN card_state s ON s.card_id=c.id
+       WHERE co.kind='vocab' AND c.suspended=0 AND s.state!=0 AND c.type='word'
        ORDER BY s.last_review DESC LIMIT 32`
     )
     const now = Date.now()
@@ -271,28 +270,8 @@ async function loadHome(): Promise<HomeData> {
       const tier: CloudTier = Number.isFinite(due) && due <= now ? 'due' : ageDays <= 3 ? 'new' : 'solid'
       return { w: r.front, tier }
     })
-    if (words.length < 14) {
-      const topics = await db.select<{ title: string }[]>(
-        'SELECT title FROM topic WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 20'
-      )
-      for (const t of topics) {
-        if (words.length >= 20) break
-        if (t.title.length <= 12) words.push({ w: t.title, tier: 'solid' })
-      }
-    }
   } catch {
     words = []
-  }
-
-  let exam: { title: string; days: number } | null = null
-  try {
-    const ex = await db.select<{ title: string; exam_date: string }[]>(
-      'SELECT title, exam_date FROM exam WHERE exam_date >= ? ORDER BY exam_date ASC LIMIT 1',
-      [new Date().toISOString().slice(0, 10)]
-    )
-    if (ex.length) exam = { title: ex[0].title, days: daysUntil(ex[0].exam_date) }
-  } catch {
-    /* 考试表为空 */
   }
 
   let resume: { idx: number; total: number } | null = null
@@ -303,7 +282,7 @@ async function loadHome(): Promise<HomeData> {
     /* 无快照 */
   }
 
-  return { books: mapped, stats, words, exam, resume }
+  return { books: mapped, stats, words, resume }
 }
 
 export default function Today() {
@@ -390,11 +369,11 @@ export default function Today() {
 
   return (
     <div className="page-in">
-      {/* 知识云 */}
+      {/* 单词云 */}
       <section className="home-hero">
         <div className="home-hero-head">
           <div className="home-hero-title">
-            <Sparkles size={16} aria-hidden /> 我的知识云
+            <Sparkles size={16} aria-hidden /> 我的单词云
           </div>
           <div className="home-hero-sub">{formatNumber(stats?.learned ?? 0)} WORDS IN ORBIT</div>
         </div>
@@ -427,7 +406,7 @@ export default function Today() {
               <span>
                 还没有学过的词。
                 <br />
-                去「学习」导入一本词书，知识云会随着学习亮起来。
+                去「学习」导入一本词书，单词云会随着学习亮起来。
               </span>
               <Button variant="primary" size="sm" onClick={() => nav('/vocab')}>
                 导入词书
@@ -449,24 +428,6 @@ export default function Today() {
           </div>
         )}
       </section>
-
-      {/* 考试倒计时 */}
-      {data?.exam && (
-        <button
-          className={`exam-strip fade-up${data.exam.days <= 7 ? ' is-urgent' : ''}`}
-          onClick={() => nav('/exams')}
-          style={{ width: '100%', textAlign: 'start' }}
-        >
-          <div className="exam-days tnum">{data.exam.days <= 0 ? '今' : data.exam.days}</div>
-          <div className="spacer-flex">
-            <div className="row-title truncate">{data.exam.title}</div>
-            <div className="row-meta">
-              {data.exam.days <= 0 ? '今天考试 · 复习已排到考前' : `还有 ${data.exam.days} 天 · 按考试日期倒排每日新学量`}
-            </div>
-          </div>
-          <CalendarDays size={17} aria-hidden style={{ color: 'var(--ink-3)' }} />
-        </button>
-      )}
 
       {/* 学习提醒 */}
       {getSettings().remind && (stats?.due ?? 0) > 0 && (
@@ -695,15 +656,6 @@ export default function Today() {
 
       {/* 功能入口 */}
       <div className="promo-row">
-        <button className="promo-card" onClick={() => nav('/courses')}>
-          <div className="promo-body">
-            <div className="promo-title">导入教材 PDF，自动建练习卡</div>
-            <div className="promo-sub">本地解析 · 扫描页跳过 · 不等解析完就能学</div>
-          </div>
-          <div className="promo-thumb is-warm" aria-hidden>
-            <FileUp size={22} />
-          </div>
-        </button>
         <button className="promo-card" onClick={() => nav('/dict')}>
           <div className="promo-body">
             <div className="promo-title">14,625 词全量查词</div>

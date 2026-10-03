@@ -108,22 +108,22 @@ async function loadVocab(): Promise<VocabData> {
   const now = new Date().toISOString()
   const nb = await db.select<{ n: number }[]>(
     `SELECT COUNT(*) AS n FROM card c JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
-     WHERE co.kind='vocab' AND c.suspended=0`
+     WHERE co.kind='vocab' AND c.type='word' AND c.suspended=0`
   )
   const due = await db.select<{ n: number }[]>(
     `SELECT COUNT(*) AS n FROM card_state cs JOIN card c ON c.id=cs.card_id
      JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
-     WHERE co.kind='vocab' AND c.suspended=0 AND cs.due<=? AND cs.state!=0`,
+     WHERE co.kind='vocab' AND c.type='word' AND c.suspended=0 AND cs.due<=? AND cs.state!=0`,
     [now]
   )
   const mastered = await db.select<{ n: number }[]>(
     `SELECT COUNT(*) AS n FROM card_state cs JOIN card c ON c.id=cs.card_id
      JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
-     WHERE co.kind='vocab' AND cs.state=2 AND cs.stability>=21`
+     WHERE co.kind='vocab' AND c.type='word' AND cs.state=2 AND cs.stability>=21`
   )
   const notebook = await db.select<{ n: number }[]>(
     `SELECT COUNT(*) AS n FROM card c JOIN topic t ON t.id=c.topic_id JOIN course co ON co.id=t.course_id
-     WHERE co.kind='vocab' AND co.name='生词本' AND c.suspended=0`
+     WHERE co.kind='vocab' AND c.type='word' AND co.name='生词本' AND c.suspended=0`
   )
   return {
     stats,
@@ -541,7 +541,7 @@ export default function Vocab() {
 
           <div className="today-hint fade-up" style={{ marginTop: 'var(--sp-5)' }}>
             <span className="dot" aria-hidden />
-            词书数据来自词典包，首次导入需要联网；导入后完全离线可用，每组 {WORDS_PER_GROUP} 词为一个知识点
+            词书数据来自词典包，首次导入需要联网；导入后完全离线可用，每组 {WORDS_PER_GROUP} 词
           </div>
 
           <div className="inline gap-2" style={{ marginTop: 'var(--sp-3)' }}>
