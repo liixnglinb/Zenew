@@ -74,8 +74,6 @@ export default function Login({ onLogin }: { onLogin: (me: { email: string }) =>
         </p>
 
         <Card>
-          <div className="kicker">{mode === 'login' ? 'SIGN IN' : 'REGISTER'}</div>
-
           <Segmented
             ariaLabel="登录或注册"
             value={mode}

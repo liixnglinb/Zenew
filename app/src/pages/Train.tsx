@@ -534,9 +534,6 @@ export default function Train() {
             <div className="train-dock-title" style={{ marginTop: 'var(--sp-4)' }}>
               训练模式
             </div>
-            <div className="train-dock-sub">
-              {bookName ? `《${bookName}》· ` : ''}五种练法，选一个开始今天的一组词
-            </div>
           </div>
           <div className="train-dock-grid" role="list">
             {TRAIN_MODES.map((m) => (
@@ -557,11 +554,6 @@ export default function Train() {
                 </span>
               </button>
             ))}
-          </div>
-          <div className="train-dock-head">
-            <div className="train-dock-sub">
-              训练与日常学习共用同一套 FSRS 记忆曲线，训练成绩同样计入今日复习
-            </div>
           </div>
         </div>
       </div>
@@ -737,7 +729,7 @@ export default function Train() {
             </div>
             <div className="train-sense">
               {sense}
-              <small>{revealSense ? '认清它，再按「认识」过掉' : '先听声音，努力回想意思'}</small>
+              <small>{revealSense ? '' : '先听声音，努力回想意思'}</small>
             </div>
             <div className="train-rush-actions" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
               <button className="train-g-good" onClick={() => gradeAndNext(GRADE.good, true)}>
@@ -751,7 +743,7 @@ export default function Train() {
               </button>
             </div>
             <div className="review-hint">
-              不做强制评分，按 <kbd>空格</kbd> 播放 / 暂停 · <kbd>P</kbd> 重听 · <kbd>→</kbd> 下一个
+              <kbd>空格</kbd> 播放 / 暂停 · <kbd>P</kbd> 重听 · <kbd>→</kbd> 下一个
             </div>
           </>
         )}
@@ -785,7 +777,7 @@ export default function Train() {
               </button>
             </div>
             <div className="review-hint">
-              一眼定生死，别停留：<kbd>1</kbd> 认识 · <kbd>2</kbd> 模糊 · <kbd>3</kbd> 不认识 · <kbd>空格</kbd> 看释义
+              <kbd>1</kbd> 认识 · <kbd>2</kbd> 模糊 · <kbd>3</kbd> 不认识 · <kbd>空格</kbd> 看释义
             </div>
           </>
         )}
@@ -869,7 +861,7 @@ export default function Train() {
             )}
             {phase === 'typing' && (
               <div className="review-hint">
-                点选项作答，或按 <kbd>1</kbd>-<kbd>4</kbd>；完全没印象时选「我不认识」
+                按 <kbd>1</kbd>-<kbd>4</kbd> 作答
               </div>
             )}
           </>
@@ -882,9 +874,6 @@ export default function Train() {
               <div className="train-dictation-start">
                 <div className="train-dictation-art">✍️</div>
                 <div className="train-dictation-title">准备好笔纸，开始听写</div>
-                <div className="train-dictation-sub">
-                  按你的设置播放发音或显示释义，听到 / 看到之后把单词拼出来；判定结果同样计入 FSRS 复习曲线。
-                </div>
                 <div className="train-dictation-rows">
                   <div className="train-dictation-row">
                     <span>听写方式</span>
@@ -948,11 +937,7 @@ export default function Train() {
                 )}
                 <div className="train-sense">
                   {dict.prompt === 'meaning' || activeMode === 'spell' ? sense : '听发音，写出这个单词'}
-                  <small>
-                    {activeMode === 'spell'
-                      ? `按提示拼出英文单词${dict.accent === 'us' ? '（美音）' : '（英音）'}`
-                      : '写完按 Enter 判定'}
-                  </small>
+                  <small>{activeMode === 'spell' ? '按提示拼出英文单词' : '写完按 Enter 判定'}</small>
                 </div>
                 <div className="train-spell">
                   <input
@@ -1068,7 +1053,7 @@ export default function Train() {
                 </div>
                 {phase === 'typing' && (
                   <div className="review-hint">
-                    写不出来就按提示，别耗时间 · <kbd>Tab</kbd> 补字母 · <kbd>P</kbd> 重听 · <kbd>S</kbd> 斩
+                    <kbd>Tab</kbd> 补字母 · <kbd>P</kbd> 重听 · <kbd>S</kbd> 斩
                   </div>
                 )}
               </>
@@ -1150,7 +1135,6 @@ export default function Train() {
             >
               <Volume2 size={20} aria-hidden />
               <span className="train-opt-title">听发音·写单词/释义</span>
-              <span className="train-opt-desc">按设定次数播放单词发音，写出对应单词或释义</span>
             </button>
             <button
               type="button"
@@ -1160,7 +1144,6 @@ export default function Train() {
             >
               <ListChecks size={20} aria-hidden />
               <span className="train-opt-title">听释义·写单词</span>
-              <span className="train-opt-desc">只看中文释义，把英文单词拼写出来</span>
             </button>
           </div>
         </div>
@@ -1236,7 +1219,6 @@ export default function Train() {
         <div className="train-switch-row">
           <span className="train-switch-text">
             <b>自动播放下一词</b>
-            <span>判定完成后自动进入下一个单词</span>
           </span>
           <Switch checked={dict.autoNext} onChange={(v) => patchDict({ autoNext: v })} label="自动播放下一词" />
         </div>

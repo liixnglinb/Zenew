@@ -38,6 +38,7 @@ import {
   useAsync,
   useToast,
 } from '../ui'
+import '../home.css'
 
 /** 单本词书的导入进度（渲染用，字段全部就绪，避免半成品对象） */
 interface BookStat {
@@ -71,12 +72,50 @@ type CatKey = 'hot' | 'cet4' | 'cet6' | 'freq' | 'basic' | 'notebook'
 
 const BOOK_TOTALS: Record<string, number> = { cet4: 4544, cet6: 3991, freq: 4544, basic: 3911 }
 
-/** 3D 书封配色（沿用设计稿的彩色封面） */
-const COVERS: Record<string, { bg: string; tag: string; sub: string }> = {
-  cet4: { bg: 'linear-gradient(140deg, #2FC08A, #12885F)', tag: 'CET-4', sub: '四级' },
-  cet6: { bg: 'linear-gradient(140deg, #F2705F, #C93A34)', tag: 'CET-6', sub: '六级' },
-  freq: { bg: 'linear-gradient(140deg, #4C7DF7, #1B47C4)', tag: 'FREQ', sub: '高频' },
-  basic: { bg: 'linear-gradient(140deg, #FFB020, #E07B39)', tag: 'BASIC', sub: '基础' },
+/* ---- 书封：按 book.key 程序化生成（低饱和渐变 + 固定几何纹样），与首页计划卡的
+        BookCover 完全同款（改配色请两处同步）。纯 CSS/内联 SVG，不用图片 ---- */
+interface CoverSpec {
+  from: string
+  to: string
+  tag: string
+  sub: string
+  /** 几何纹样（内联 SVG 平铺，白色且透明度 ≤ .12，压在渐变之上、文字之下） */
+  pattern: string
+}
+
+const PATTERN_RING =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='52'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.1'%3E%3Ccircle cx='26' cy='26' r='7' stroke-width='1.3'/%3E%3Ccircle cx='26' cy='26' r='15' stroke-width='1.1'/%3E%3Ccircle cx='26' cy='26' r='23' stroke-width='.9'/%3E%3C/g%3E%3C/svg%3E\")"
+const PATTERN_WAVE =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cg stroke='%23fff' stroke-opacity='.1' stroke-width='1.1' fill='none'%3E%3Cpath d='M-2 18 L18 -2 M4 22 L22 4'/%3E%3C/g%3E%3C/svg%3E\")"
+const PATTERN_DOT =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cg fill='%23fff' fill-opacity='.11'%3E%3Ccircle cx='3' cy='3' r='1.3'/%3E%3Ccircle cx='10' cy='10' r='1'/%3E%3C/g%3E%3C/svg%3E\")"
+
+const COVERS: Record<string, CoverSpec> = {
+  cet4: { from: '#2AAF8E', to: '#1B7A66', tag: 'CET-4', sub: '四级', pattern: PATTERN_RING },
+  cet6: { from: '#D9705F', to: '#A6453C', tag: 'CET-6', sub: '六级', pattern: PATTERN_WAVE },
+  freq: { from: '#5478CF', to: '#33509B', tag: 'FREQ', sub: '高频', pattern: PATTERN_DOT },
+  basic: { from: '#DDA347', to: '#AF7530', tag: 'BASIC', sub: '基础', pattern: PATTERN_RING },
+  notebook: { from: '#8875CE', to: '#5F4AA6', tag: 'MY', sub: '生词本', pattern: PATTERN_WAVE },
+}
+
+/** 56×76 程序化书封：左缘书脊 + 1px 高光 + 纹样 + 上下两排文字（哑光，无塑料反光） */
+function BookCover({ bookKey }: { bookKey: string }) {
+  const c = COVERS[bookKey] || COVERS.cet4
+  return (
+    <div
+      className="book-cover"
+      style={{
+        backgroundImage: `${c.pattern}, linear-gradient(146deg, ${c.from}, ${c.to})`,
+        backgroundSize: 'auto, 100% 100%',
+        backgroundPosition: '50% 34%, 0 0',
+        backgroundRepeat: 'repeat, no-repeat',
+      }}
+      aria-hidden
+    >
+      <b>{c.tag}</b>
+      <span>{c.sub}</span>
+    </div>
+  )
 }
 
 const CATS: { key: CatKey; label: string; book?: string }[] = [
@@ -329,11 +368,7 @@ export default function Vocab() {
 
       {!loading && !error && data && (
         <>
-          <p className="page-sub" style={{ marginTop: 0 }}>
-            导入即进入科学复习循环：先想 → 作答 → 按遗忘曲线安排下一次
-          </p>
-
-          <div className="metric-row">
+          <div className="metric-row" style={{ marginTop: 0 }}>
             <div className={`metric${data.due > 0 ? ' metric-hl' : ''}`}>
               <b className="tnum">{formatNumber(data.due)}</b>
               <span>今日待复习</span>
@@ -353,7 +388,7 @@ export default function Vocab() {
           </div>
 
           <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <SearchInput value={kw} onChange={setKw} placeholder="搜索词书名称或说明" label="搜索词书" />
+            <SearchInput value={kw} onChange={setKw} placeholder="搜索词书" label="搜索词书" />
           </div>
 
           <Tabs tabs={tabs} active={cat} onChange={setCat} variant="pill" ariaLabel="词书分类" />
@@ -368,16 +403,12 @@ export default function Vocab() {
                   const done = s.cards >= total
                   const canStudy = s.cards > 0
                   const plan = getPlan(b.key)
-                  const cover = COVERS[b.key] || COVERS.cet4
                   const importing = s.importing > 0
                   const busy = !!importingKey || importing
                   return (
                     <Card key={b.key} className="fade-up">
                       <div className="inline" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 'var(--sp-3)' }}>
-                        <div className="book-cover" style={{ background: cover.bg }} aria-hidden>
-                          <b>{cover.tag}</b>
-                          <span>{cover.sub}</span>
-                        </div>
+                        <BookCover bookKey={b.key} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="inline" style={{ flexWrap: 'nowrap', justifyContent: 'space-between' }}>
                             <span className="row-title truncate" title={b.name}>
@@ -389,9 +420,7 @@ export default function Vocab() {
                               </span>
                             )}
                           </div>
-                          <div className="row-meta">
-                            {b.desc} · 共 {formatNumber(total)} 词
-                          </div>
+                          <div className="row-meta">共 {formatNumber(total)} 词</div>
 
                           {canStudy ? (
                             <>
@@ -411,7 +440,6 @@ export default function Vocab() {
                               <Tag tone="neutral" icon={<Clock size={11} aria-hidden />}>
                                 还没导入
                               </Tag>
-                              <span className="row-meta">导入后即可开始学习</span>
                             </div>
                           )}
 
@@ -420,7 +448,6 @@ export default function Vocab() {
                               <Tag tone="success" icon={<CheckCircle2 size={11} aria-hidden />}>
                                 已导入全部
                               </Tag>
-                              {!canStudy && <span className="row-meta">从下面的「开始学习」建立记忆曲线</span>}
                             </div>
                           )}
 
@@ -505,13 +532,7 @@ export default function Vocab() {
               <Card>
                 <EmptyState
                   title={searching ? '没有匹配的词书' : cat === 'notebook' ? '生词本还是空的' : '这个分类下暂时没有词书'}
-                  desc={
-                    searching
-                      ? '换个关键词试试，或清空筛选查看全部四本词书。'
-                      : cat === 'notebook'
-                        ? '在查词页把不认识的词收藏进来，它们会和词书一起进入同一个复习循环。'
-                        : '切回「热门」可以看到全部内置词书。'
-                  }
+                  desc={searching ? `没有匹配「${kw.trim()}」的词书。` : cat === 'notebook' ? '还没有收藏的生词。' : undefined}
                   action={emptyAction}
                 />
               </Card>
@@ -547,12 +568,7 @@ export default function Vocab() {
             )}
           </Card>
 
-          <div className="today-hint fade-up" style={{ marginTop: 'var(--sp-5)' }}>
-            <span className="dot" aria-hidden />
-            词书数据来自词典包，首次导入需要联网；导入后完全离线可用，每组 {WORDS_PER_GROUP} 词
-          </div>
-
-          <div className="inline gap-2" style={{ marginTop: 'var(--sp-3)' }}>
+          <div className="inline gap-2" style={{ marginTop: 'var(--sp-4)' }}>
             <Tag tone="neutral" icon={<Library size={11} aria-hidden />}>
               学习记录保存在本机
             </Tag>
@@ -570,8 +586,8 @@ export default function Vocab() {
         title={`导入《${pendingAll?.name ?? ''}》全部单词？`}
         description={
           <>
-            将把该词书剩余 <b>{formatNumber(Math.max(0, (BOOK_TOTALS[pendingAll?.key ?? ''] ?? 0) - statOf(pendingAll?.key ?? '').cards))}</b>{' '}
-            个单词分批写入本机，字数较多，需要一段时间；期间请保持联网，已导入的词不会重复写入。
+            剩余 <b>{formatNumber(Math.max(0, (BOOK_TOTALS[pendingAll?.key ?? ''] ?? 0) - statOf(pendingAll?.key ?? '').cards))}</b>{' '}
+            个单词将分批写入本机，需要一段时间并保持联网；已导入的词不会重复写入。
           </>
         }
         confirmText="开始导入全部"

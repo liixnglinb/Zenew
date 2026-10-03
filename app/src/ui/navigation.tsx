@@ -123,13 +123,14 @@ export function PageHeader({
   actions?: ReactNode
   kicker?: ReactNode
 }) {
+  // 文案规范：只保留用户做决定或看结果必需的字。
+  // kicker（如「VOCAB / WORD BOOKS」）与面包屑（如「单词 / 词库」）属于导航装饰，
+  // 统一不再渲染；prop 仍然接收，避免改动全部调用方（`void` 同时满足 noUnusedLocals）。
+  void crumbs
+  void kicker
+  void onNavigate
   return (
     <header style={{ marginBottom: 'var(--sp-4)' }}>
-      {crumbs && crumbs.length > 0 && (
-        <div style={{ marginBottom: 'var(--sp-2)' }}>
-          <Breadcrumb items={crumbs} onNavigate={onNavigate} />
-        </div>
-      )}
       <div className="page-header">
         {onBack && (
           <button type="button" className="icon-btn" aria-label="返回上一页" title="返回" onClick={onBack}>

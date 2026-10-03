@@ -1,0 +1,254 @@
+/* ============================================================
+   首页桌面概览区（Today.tsx 专用，全部 hm-* 作用域）
+   ------------------------------------------------------------
+   结构：第一行 3 张指标卡（待复习 / 已学词 / 连续天数）
+         第二行 最近学习的词卡（横向滚动，最多 8 张）
+   只依赖 index.css 的设计令牌（--card / --sh-* / --r-* / --fs-* 等），
+   不覆盖任何既有类名，与质感层互不干扰。
+   ============================================================ */
+.hm-home {
+  margin-bottom: var(--sp-4);
+}
+
+/* ---------------- 第一行：指标卡 ---------------- */
+.hm-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.hm-metric {
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
+}
+[data-theme="dark"] .hm-metric {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+
+.hm-metric-num {
+  display: block;
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-black);
+  line-height: 1.05;
+  letter-spacing: -.045em;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.hm-metric-label {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+
+/* 三档语义着色：待复习=珊瑚（要动手）· 已学词=薄荷（进度）· 连续=琥珀（能量） */
+.hm-metric.is-due b { color: var(--coral); }
+.hm-metric.is-learned b { color: var(--mint-ink); }
+.hm-metric.is-streak b { color: var(--amber-ink); }
+
+/* ---------------- 第二行：最近学习的词 ---------------- */
+.hm-words {
+  margin-top: var(--sp-3);
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
+}
+[data-theme="dark"] .hm-words {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+
+.hm-words-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.hm-words-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--ink-2);
+}
+
+.hm-words-all {
+  border: none;
+  background: none;
+  padding: 2px 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+}
+.hm-words-all:hover { color: var(--brand-hi); }
+
+/* 横向轨道：单行卡片，超出时横向滚动 */
+.hm-words-row {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  padding-bottom: var(--sp-2);
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.hm-word {
+  position: relative;
+  flex: 0 0 148px;
+  min-height: 84px;
+  padding: var(--sp-3) var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  scroll-snap-align: start;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--n-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base), background var(--dur-fast);
+}
+.hm-word:hover {
+  background: var(--card);
+  transform: translateY(-2px);
+  box-shadow: var(--sh-2), inset 0 0 0 1px var(--brand-line);
+}
+.hm-word:active { transform: translateY(0) scale(.99); }
+
+.hm-word-text {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-black);
+  letter-spacing: -.02em;
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hm-word-mean {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hm-word-mean.is-none { color: var(--ink-3); }
+
+/* 底部记忆状态细条：颜色由 is-tier-* 决定的 --hm-tier 给出 */
+.hm-word-bar {
+  position: absolute;
+  left: var(--sp-3);
+  right: var(--sp-3);
+  bottom: 9px;
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--hm-tier, var(--ink-3));
+  opacity: .92;
+}
+.hm-word.is-tier-new { --hm-tier: var(--brand); }
+.hm-word.is-tier-solid { --hm-tier: var(--mint); }
+.hm-word.is-tier-due { --hm-tier: var(--coral); }
+
+/* ---------------- 无数据 ---------------- */
+.hm-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-top: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
+}
+[data-theme="dark"] .hm-empty {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+.hm-empty p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+/* ---------------- 窄窗口 ---------------- */
+@media (max-width: 720px) {
+  .hm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hm-metric { padding: var(--sp-3) var(--sp-4); }
+  .hm-metric-num { font-size: var(--fs-2xl); }
+  .hm-word { flex-basis: 132px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-word { transition: none; }
+  .hm-word:hover { transform: none; }
+}
+
+/* ============================================================
+   书封（程序生成）：词库页 Vocab.tsx 与首页计划卡共用同一个 .book-cover
+   ------------------------------------------------------------
+   56×76 的哑光封面：左缘 4px 深色书脊 + 1px 高光，纹样由内联 style 叠在
+   渐变之下。这样两个页面的封面永远一致。
+   ============================================================ */
+.book-cover {
+  width: 56px;
+  height: 76px;
+  border-radius: 10px;
+  padding: 8px 9px 8px 13px;
+  justify-content: space-between;
+  gap: 0;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+  background-origin: border-box;
+  box-shadow: var(--sh-1), 0 6px 14px -8px rgba(18, 33, 47, .5);
+}
+
+/* 书脊：深色压边（+ 1px 高光由 ::after 压在右侧） */
+.book-cover::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .34), rgba(0, 0, 0, .5));
+}
+
+/* 书脊高光：1px 白线 */
+.book-cover::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, .34);
+}
+
+.book-cover > b,
+.book-cover > span {
+  position: relative;
+  z-index: 1;
+}
+
+.book-cover b {
+  font-size: 10px;
+  font-weight: var(--fw-black);
+  letter-spacing: .1em;
+  line-height: 1.2;
+  opacity: .96;
+}
+
+.book-cover span {
+  font-size: 9px;
+  font-weight: var(--fw-black);
+  letter-spacing: .14em;
+  line-height: 1.2;
+  opacity: .85;
+}

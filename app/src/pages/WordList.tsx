@@ -327,7 +327,7 @@ export default function WordList() {
   if (!name) {
     return (
       <div className="page-in">
-        <PageHeader title="单词列表" onBack={() => nav('/vocab')} crumbs={[{ label: '词库', to: '/vocab' }, { label: '单词列表' }]} />
+        <PageHeader title="单词列表" onBack={() => nav('/vocab')} />
         <Card>
           <EmptyState
             title="没有找到这本词书"
@@ -415,10 +415,7 @@ export default function WordList() {
     <div className="page-in wl-page">
       <PageHeader
         title="单词列表"
-        kicker={`VOCAB / ${name}`}
         onBack={() => nav('/vocab')}
-        crumbs={[{ label: '词库', to: '/vocab' }, { label: name, to: `/vocab/${key}` }, { label: '单词列表' }]}
-        onNavigate={(to) => nav(to)}
         actions={
           <>
             <IconButton label="重新读取本词书单词" onClick={loaded.reload}>
@@ -499,7 +496,7 @@ export default function WordList() {
               </select>
             </label>
             <div className="wl-search">
-              <SearchInput value={kw} onChange={setKw} placeholder="搜索单词或释义" label="搜索单词或释义" />
+              <SearchInput value={kw} onChange={setKw} placeholder="搜索单词" label="搜索单词" />
             </div>
             <button
               type="button"
