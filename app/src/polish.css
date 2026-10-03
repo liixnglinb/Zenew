@@ -1,0 +1,278 @@
+/* ============================================================
+ * polish.css — 第三波质感升级（由 ReviewSession / Rank / Tasks /
+ * WordDetailPanel / Train 引入；在 index.css 之后加载，同特异性时后者胜）
+ *
+ * 内容：
+ *   A. 形义徽标层（emblem.ts 的纹样平铺 / 光晕 / 字形层级）
+ *   B. 排行榜主题化（去掉整页深色，星空只留横幅光晕；榜单/领奖台走令牌）
+ *   C. 可解释记忆面板（为什么现在复习）
+ *   D. 学习完成页庆祝卡
+ *   E. 金色小块统一模板（哑光渐变底 + 发丝描边 + 顶部内高光）
+ *
+ * 全部使用 index.css v6 令牌（--card、--n-x、--ink-x、--brand、--amber 系列），浅深主题都成立。
+ * ============================================================ */
+
+/* ---------- A. 形义徽标层 ---------- */
+/* index.css 的 .media-card 自带点阵纹理，让位给 emblem 纹样层 */
+.media-card--emblem::before {
+  content: none;
+}
+.emblem-pattern {
+  position: absolute;
+  inset: -12%; /* 留出旋转余量，避免转出露边 */
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+  opacity: 0.55;
+}
+.emblem-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  width: 58%;
+  max-width: 240px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 68%);
+}
+/* 词条详情的小图卡：字形与角标原是静态定位，会被绝对定位的纹样层盖住，提到其上 */
+.wl-visual-glyph,
+.wl-visual-caption {
+  position: relative;
+}
+
+/* ---------- B. 排行榜主题化 ---------- */
+/* 赛季横幅：星空/季赛氛围只保留为横幅内的渐变光晕（浅深主题都用令牌混色） */
+.rk-hero {
+  position: relative;
+  overflow: hidden;
+  margin-top: var(--sp-2);
+  min-height: 120px;
+  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  background: var(--card);
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+.rk-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(420px 170px at 16% 0%, color-mix(in srgb, var(--brand) 24%, transparent) 0%, transparent 70%),
+    radial-gradient(360px 150px at 88% 115%, color-mix(in srgb, var(--amber) 22%, transparent) 0%, transparent 72%),
+    radial-gradient(220px 130px at 60% -35%, color-mix(in srgb, var(--mint) 18%, transparent) 0%, transparent 75%);
+}
+.rk-hero > * {
+  position: relative;
+  z-index: 1;
+}
+.rk-hero-stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rk-hero-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--ink-1);
+}
+.rk-hero-line svg {
+  color: var(--amber);
+  flex-shrink: 0;
+}
+.rk-hero-timer {
+  flex-shrink: 0;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rk-hero-count {
+  font-family: var(--mono);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-black);
+  color: var(--amber);
+  letter-spacing: 0.02em;
+}
+.rk-hero-sub {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+/* 榜单行 / 领奖台 / 名次：全部改用主题令牌（覆盖 index.css 里为整页深色写的白系硬编码） */
+.rank-row {
+  background: var(--n-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.rank-row.is-me {
+  background: linear-gradient(120deg, color-mix(in srgb, var(--brand) 14%, var(--n-1)), var(--n-1));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 55%, transparent);
+}
+.rank-no {
+  color: var(--ink-3);
+}
+.rank-row.is-me .rank-no {
+  color: var(--brand);
+}
+.rank-name {
+  color: var(--ink-1);
+}
+.rank-book {
+  color: var(--ink-3);
+}
+.podium-name {
+  color: var(--ink-1);
+}
+.podium-score {
+  color: var(--ink-3);
+}
+.podium-base {
+  background: linear-gradient(180deg, var(--n-2), var(--n-1));
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+}
+/* 页脚说明：替代原 .dark-note 的白系硬编码 */
+.rank-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: var(--sp-4);
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.rank-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+/* 段位锁星：锁已由 lucide <Lock> 渲染，停用 index.css 的 emoji 角标 */
+.star.is-locked::after {
+  content: none;
+}
+
+/* ---------- C. 可解释记忆面板 ---------- */
+.why-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px var(--brand-line);
+  font-size: var(--fs-xs);
+  color: var(--brand-ink);
+}
+.why-row > svg {
+  flex-shrink: 0;
+}
+.why-title {
+  font-weight: var(--fw-bold);
+}
+.why-facts {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.why-line {
+  flex-basis: 100%;
+  color: var(--ink-2);
+}
+/* 首学（数据不足）态：中性底色，不渲染假数据 */
+.why-row--first {
+  background: var(--n-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+}
+
+/* ---------- D. 学习完成页庆祝卡 ---------- */
+.done-hero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--amber-soft), color-mix(in srgb, var(--amber-soft) 40%, var(--card)));
+  box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  color: var(--amber);
+}
+.done-hero--empty {
+  background: var(--n-2);
+  color: var(--ink-3);
+}
+.done-card {
+  margin-top: 22px;
+  padding: var(--sp-5);
+  text-align: left;
+}
+.done-stats {
+  display: flex;
+  justify-content: space-around;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  text-align: center;
+}
+.done-stat {
+  min-width: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.done-stat b {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-black);
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.done-stat span {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+.done-extra {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.done-extra-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+.done-extra-row svg {
+  flex-shrink: 0;
+  color: var(--amber);
+}
+.done-extra-row.is-streak svg {
+  color: var(--coral);
+}
+
+/* ---------- E. 金色小块统一模板：哑光渐变底 + 发丝描边 + 顶部内高光 ---------- */
+/* 文字固定深棕（金底在浅深主题下都是浅金，深棕对比成立） */
+.task-coin,
+.star.is-on,
+.podium-col.is-first .podium-base,
+.polish-gold {
+  background: linear-gradient(165deg, var(--amber-hi) 0%, var(--amber) 100%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--amber-ink) 24%, transparent), /* 发丝描边 */
+    inset 0 1px 0 rgba(255, 255, 255, 0.5), /* 顶部内高光 */
+    0 2px 8px -3px color-mix(in srgb, var(--amber) 55%, transparent); /* 落影 */
+  color: #5a3300;
+}

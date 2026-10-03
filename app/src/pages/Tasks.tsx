@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Check, Gift, Star, Target } from 'lucide-react'
 import { dailyTasks, starBank, grantStars, openGift, giftCount, type Task } from '../study'
 import { formatNumber } from '../lib/format'
+import '../polish.css'
 import {
   Button,
   Card,
@@ -98,7 +99,7 @@ export default function Tasks() {
                 <small>/30</small>
               </div>
               {Array.from({ length: Math.min(6, Math.max(1, Math.round(displayStars / 5))) }).map((_, i) => (
-                <span className="jar-star" key={i} style={{ animationDelay: `${i * 0.3}s`, color: 'var(--warning-500)' }} aria-hidden>
+                <span className="jar-star" key={i} style={{ animationDelay: `${i * 0.3}s` }} aria-hidden>
                   <Star size={22} fill="currentColor" />
                 </span>
               ))}

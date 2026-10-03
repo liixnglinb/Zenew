@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { ArrowLeft, ArrowRight, Check, Lightbulb, Maximize2, Minimize2, Scissors, Sparkles, Volume2, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Brain, CalendarClock, Check, Flame, Inbox, Lightbulb, Maximize2, Minimize2, PartyPopper, RotateCcw, Scissors, Sparkles, Volume2, X } from 'lucide-react'
 import { getDb, loadQueue, loadSession, loadQueueByIds, saveSession, clearSession, nowIso, isTauri, type QueueItem } from '../db'
 import { schedule, R } from '../fsrs'
-import { buildWordChoices, morphology, similarWords, tone, buzz, wordVisual, getSettings, type ChoiceSet } from '../study'
+import { buildWordChoices, morphology, similarWords, tone, buzz, getSettings, loadStreak, type ChoiceSet } from '../study'
+import { emblemOf } from '../emblem'
 import { Progress, useToast } from '../ui'
 import { useHotkeys } from '../ui/desktop'
+import '../polish.css'
 
 type Phase = 'front' | 'answered'
 type DetailTab = 'sense' | 'sent' | 'morph' | 'similar'
@@ -41,6 +43,41 @@ function speak(text: string) {
   }
 }
 
+/* ---------------- 可解释记忆面板（为什么现在复习） ----------------
+ * FSRS-4.5 可提取性幂函数：R = (1 + FACTOR · elapsed / stability)^DECAY
+ * FACTOR = 19/81、DECAY = -0.5 为 FSRS-4.5 标准常数（ts-fsrs 的 SRS 默认衰减曲线）。
+ * src/fsrs.ts 未导出内部常数，这里按同口径本地实现，仅用于展示，不参与调度。
+ */
+const RETENTION_FACTOR = 19 / 81
+const RETENTION_DECAY = -0.5
+
+interface WhyInfo {
+  /** 距上次学习的人类可读天数 */
+  days: string
+  /** 可提取性（记忆强度，0..1） */
+  r: number
+  /** 一句白话（≤20 字） */
+  line: string
+}
+
+function explainMemory(st: QueueItem['st']): WhyInfo | null {
+  if (!st || st.state === 0 || !st.last_review || !(st.stability > 0)) return null
+  const last = new Date(st.last_review).getTime()
+  if (!Number.isFinite(last)) return null
+  const elapsed = Math.max(0, (Date.now() - last) / 86400000)
+  const r = Math.min(1, Math.max(0.01, Math.pow(1 + RETENTION_FACTOR * (elapsed / st.stability), RETENTION_DECAY)))
+  const days = elapsed < 1 ? '不足 1 天' : `${Math.floor(elapsed)} 天`
+  const line =
+    r >= 0.9
+      ? '记得很牢，趁热巩固一遍'
+      : r >= 0.75
+        ? '记忆开始变淡，正是复习时机'
+        : r >= 0.5
+          ? '快到遗忘临界点，现在复习收益最高'
+          : '已到遗忘边缘，现在回忆最有效'
+  return { days, r, line }
+}
+
 interface Confetti {
   left: number
   dx: number
@@ -67,6 +104,8 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
   const [confetti, setConfetti] = useState<Confetti[]>([])
   const [prevCard, setPrevCard] = useState<{ w: string; m: string } | null>(null)
   const [done, setDone] = useState<{ total: number; again: number; ms: number } | null>(null)
+  /** 完成页附加数据：明日到期预告 + 连续天数（进入完成态后异步查询） */
+  const [doneExtra, setDoneExtra] = useState<{ tomorrow: number; streak: number } | null>(null)
   const shownAt = useRef<number>(Date.now())
   const sessionStart = useRef<number>(Date.now())
   const againCount = useRef<number>(0)
@@ -152,10 +191,78 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
     })()
   }, [])
 
+  /* ---- 完成态附加统计：明日到期预告 + 连续天数（口径与 loadQueue 一致：词书单词卡） ---- */
+  useEffect(() => {
+    if (!done) {
+      setDoneExtra(null)
+      return
+    }
+    let alive = true
+    void (async () => {
+      try {
+        const db = await getDb()
+        const base = new Date()
+        base.setHours(0, 0, 0, 0)
+        const t1 = new Date(base.getTime() + 86400000)
+        const t2 = new Date(base.getTime() + 2 * 86400000)
+        const rows = await db.select<{ n: number }[]>(
+          `SELECT COUNT(*) AS n FROM card_state cs
+           JOIN card c ON c.id = cs.card_id
+           JOIN topic t ON t.id = c.topic_id
+           JOIN course co ON co.id = t.course_id
+           WHERE co.kind = 'vocab' AND c.type = 'word' AND c.suspended = 0 AND cs.state != 0
+             AND cs.due >= ? AND cs.due < ?`,
+          [t1.toISOString(), t2.toISOString()]
+        )
+        const streak = await loadStreak().catch(() => 0)
+        if (alive) setDoneExtra({ tomorrow: Number(rows[0]?.n || 0), streak })
+      } catch (e) {
+        console.error('完成页统计失败', e)
+        if (alive) setDoneExtra({ tomorrow: 0, streak: 0 })
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [done])
+
+  /** 「再学一组」：清零计数器，重新拉队列进入学习 */
+  const studyAnother = () => {
+    void (async () => {
+      const rawLimit = Number(localStorage.getItem('zenew_new_limit'))
+      const newLimit = Number.isFinite(rawLimit) && rawLimit >= 0 ? rawLimit : 10
+      const q = await loadQueue(nowIso(), newLimit)
+      if (!q.length) {
+        toast.info('暂时没有更多待学的卡片，先去词书导入吧')
+        return
+      }
+      doneCount.current = 0
+      againCount.current = 0
+      sessionStart.current = Date.now()
+      shownAt.current = Date.now()
+      setQueue(q)
+      setIdx(0)
+      setPhase('front')
+      setPicked(null)
+      setDone(null)
+      setResumed(false)
+      setDoneExtra(null)
+      // 重置单卡 UI 态（新队首可能与上一队尾同 id，item 变更 effect 不会触发）
+      setShowDetail(false)
+      setShowHint(false)
+      setSimilar(null)
+      setDetailTab('sense')
+      setConfetti([])
+      setCommitErr('')
+      await saveSession(q.map((x) => x.id), 0).catch(() => {})
+    })()
+  }
+
   const item = queue[idx]
   const wordBack = useMemo(() => (item ? parseWordBack(item.back) : null), [item])
   const morph = useMemo(() => (item ? morphology(item.front) : null), [item])
-  const visual = useMemo(() => wordVisual(item?.front || 'A'), [item])
+  const emb = useMemo(() => emblemOf(item?.front || 'A'), [item])
+  const why = useMemo(() => explainMemory(item?.st ?? null), [item?.st])
   const firstSense = wordBack?.m?.[0]
 
   /* ---- 换卡：重置阶段态，生成四选一，自动朗读 ---- */
@@ -422,29 +529,61 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
 
   if (done || queue.length === 0) {
     const s = done || { total: 0, again: 0, ms: 0 }
+    const acc = s.total > 0 ? Math.round(((s.total - s.again) / s.total) * 100) : null
+    const isEmpty = queue.length === 0 && !done
     return (
       <div className="study" style={{ padding: '8vh 22px 40px' }}>
         <div className="page-in" style={{ maxWidth: 520, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontSize: '3.4rem', lineHeight: 1 }}>🎉</div>
+          <div className={`done-hero${isEmpty ? ' done-hero--empty' : ''}`} aria-hidden>
+            {isEmpty ? <Inbox size={32} /> : <PartyPopper size={32} />}
+          </div>
           <div className="page-title" style={{ marginTop: 12 }}>
-            {queue.length === 0 && !done ? '暂时没有待学的卡片' : '今日训练完成'}
+            {isEmpty ? '暂时没有待学的卡片' : '今日训练完成'}
           </div>
           <div className="muted" style={{ marginTop: 8 }}>
-            {queue.length === 0 && !done ? '去词书挑一本开始学习，或到查词页收藏生词' : '学习记录已保存，下次打开接着安排'}
+            {isEmpty ? '去词书挑一本开始学习，或到查词页收藏生词' : '学习记录已保存，下次打开接着安排'}
           </div>
           {done && (
-            <div className="card" style={{ marginTop: 22, display: 'inline-flex', gap: 22, alignItems: 'baseline', padding: '18px 26px' }}>
-              <div>
-                <div className="display-num" style={{ fontSize: '2rem' }}>{s.total}</div>
-                <div className="row-meta">张完成</div>
+            <div className="card done-card" role="group" aria-label="本组学习小结">
+              <div className="done-stats">
+                <div className="done-stat">
+                  <b className="tnum">{s.total}</b>
+                  <span>张完成</span>
+                </div>
+                <div className="done-stat">
+                  <b className="tnum">{acc === null ? '—' : `${acc}%`}</b>
+                  <span>正确率</span>
+                </div>
+                <div className="done-stat">
+                  <b className="tnum">{s.again}</b>
+                  <span>次忘了</span>
+                </div>
+                <div className="done-stat">
+                  <b className="tnum">{Math.round(s.ms / 1000)}</b>
+                  <span>秒用时</span>
+                </div>
               </div>
-              <div style={{ width: 1, height: 36, background: 'var(--line)' }} />
-              <div className="tag">{s.again} 次忘了</div>
-              <div className="tag tag-ok">{Math.round(s.ms / 1000)} 秒</div>
+              {doneExtra && (
+                <div className="done-extra">
+                  <div className="done-extra-row">
+                    <CalendarClock size={14} aria-hidden />
+                    <span>明天还有 {doneExtra.tomorrow} 词待复习</span>
+                  </div>
+                  <div className="done-extra-row is-streak">
+                    <Flame size={14} aria-hidden />
+                    <span>{doneExtra.streak > 0 ? `已连续学习 ${doneExtra.streak} 天，火候正好` : '今天开了个好头，明天再来续上火'}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div style={{ marginTop: 20, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={() => { exitFs(); nav('/today') }}>
+            {!isEmpty && (
+              <button className="btn btn-primary" onClick={studyAnother}>
+                <RotateCcw size={15} aria-hidden /> 再学一组
+              </button>
+            )}
+            <button className="btn btn-outline" onClick={() => { exitFs(); nav('/today') }}>
               回到今日
             </button>
             <button className="btn btn-outline" onClick={() => { exitFs(); nav('/stats') }}>
@@ -564,9 +703,15 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
           </div>
         )}
 
-        {/* 媒体记忆卡 */}
-        <div className="media-card" style={{ background: `linear-gradient(150deg, ${visual.from}, ${visual.to})` }}>
-          <span className="media-letter">{visual.glyph}</span>
+        {/* 媒体记忆卡：程序化形义徽标（纹样平铺 + 渐变 + 中央大字形 + 细微光晕，同词永远同图） */}
+        <div className="media-card media-card--emblem" style={{ background: `linear-gradient(150deg, ${emb.from}, ${emb.to})` }}>
+          <span
+            className="emblem-pattern"
+            aria-hidden
+            style={{ backgroundImage: `url("${emb.pattern}")`, transform: `rotate(${emb.angle}deg)` }}
+          />
+          <span className="emblem-halo" aria-hidden />
+          <span className="media-letter">{emb.glyph}</span>
           <span className="media-tag">WORD</span>
           <span className="media-caption">
             {item.course_name} · {item.topic_title}
@@ -650,6 +795,24 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
         {/* 作答后的详情 */}
         {phase === 'answered' && (
           <div className="fade-up" style={{ marginTop: 18 }}>
+            {/* 可解释记忆面板：为什么现在复习（数据来自 card_state，不足时不渲染假数据） */}
+            {why ? (
+              <div className="why-row" role="note" aria-label="为什么现在复习">
+                <Brain size={14} aria-hidden />
+                <span className="why-title">为什么现在复习</span>
+                <span className="why-facts">
+                  距上次学习 {why.days} · 记忆强度 {Math.round(why.r * 100)}% · 预计遗忘概率 {Math.round((1 - why.r) * 100)}%
+                </span>
+                <span className="why-line">{why.line}</span>
+              </div>
+            ) : (
+              <div className="why-row why-row--first" role="note" aria-label="为什么现在复习">
+                <Brain size={14} aria-hidden />
+                <span className="why-title">为什么现在复习</span>
+                <span className="why-line">首学：建立记忆轨迹</span>
+              </div>
+            )}
+
             {/* AI 辨析气泡 */}
             {similar && similar.length > 0 && (
               <button

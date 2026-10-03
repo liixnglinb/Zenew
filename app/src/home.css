@@ -1,8 +1,11 @@
 /* ============================================================
-   首页桌面概览区（Today.tsx 专用，全部 hm-* 作用域）
+   首页「今日驾驶舱」（Today.tsx 专用，全部 hm-* 作用域）
    ------------------------------------------------------------
-   结构：第一行 3 张指标卡（待复习 / 已学词 / 连续天数）
-         第二行 最近学习的词卡（横向滚动，最多 8 张）
+   结构：.hm-cockpit = grid-2 is-aside 上的首页两栏层（≥1180px 两栏）
+         左栏 .hm-main：今日待复习大数字 + 新学/复习双按钮
+                       + 断点续学 + 学习计划卡 + 学习提醒
+         右栏 .hm-side：五档掌握迷你堆叠条 + 连续天数小卡
+                       + 最近学习的词（2×2，4 张）+ 生词本一行入口
    只依赖 index.css 的设计令牌（--card / --sh-* / --r-* / --fs-* 等），
    不覆盖任何既有类名，与质感层互不干扰。
    ============================================================ */
@@ -251,4 +254,288 @@
   letter-spacing: .14em;
   line-height: 1.2;
   opacity: .85;
+}
+
+/* ============================================================
+   今日驾驶舱扩展层（.hm-cockpit / .hm-main / .hm-side / .hm-hero）
+   ------------------------------------------------------------
+   ≥1180px 由 desktop.css 的 .grid-2.is-aside 提供两栏
+   （左 1fr + 右 340px），窄窗口自动回落单栏；浅深主题全走令牌。
+   ============================================================ */
+.hm-cockpit {
+  margin-bottom: var(--sp-4);
+}
+
+.hm-main,
+.hm-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* ---------------- 左栏：今日行动英雄区 ---------------- */
+.hm-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+  padding: var(--sp-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  background-color: var(--card);
+  background-image: var(--grain-layer), var(--card-fill);
+  background-size: var(--grain-size), auto;
+  background-repeat: repeat, no-repeat;
+  box-shadow: var(--sh-2), var(--inner-hi);
+}
+
+.hm-hero-score { min-width: 0; }
+
+.hm-hero-numrow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.hm-hero-num {
+  font-size: calc(var(--fs-4xl) * 1.5);
+  font-weight: var(--fw-black);
+  line-height: 1;
+  letter-spacing: -.05em;
+  color: var(--coral);
+  font-variant-numeric: tabular-nums;
+}
+
+.hm-hero-unit {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--ink-3);
+}
+
+.hm-hero-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-2);
+}
+
+/* 逾期小字标注：珊瑚软底胶囊 */
+.hm-hero-overdue {
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  background: var(--coral-soft);
+  color: var(--coral-ink);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+}
+
+/* 从计划卡移入英雄区的新学/复习双按钮（逻辑不变，仅位置与占比） */
+.hm-hero .plan-buttons {
+  flex: 1 1 300px;
+  min-width: 250px;
+  margin-top: 0;
+}
+
+/* ---------------- 右栏：状态小卡基座 ---------------- */
+.hm-side-card {
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
+}
+[data-theme="dark"] .hm-side-card {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+
+/* ---- 五档掌握迷你横向堆叠条 ---- */
+.hm-tiers-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.hm-tiers-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--ink-2);
+}
+
+.hm-tiers-meta {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+.hm-tiers-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  margin-top: var(--sp-3);
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--n-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.hm-tiers-bar i {
+  display: block;
+  height: 100%;
+  min-width: 5px;
+  border-radius: var(--r-pill);
+}
+
+/* 五档语义色（堆叠段与图例圆点共用）：待学=中性 · 待复习=珊瑚 · 巩固中=品牌 · 熟识=薄荷 · 已斩=琥珀 */
+.hm-cockpit .st-fresh { background: var(--n-4); }
+.hm-cockpit .st-due { background: var(--coral); }
+.hm-cockpit .st-solid { background: var(--brand); }
+.hm-cockpit .st-known { background: var(--mint); }
+.hm-cockpit .st-cut { background: var(--amber); }
+.hm-cockpit .st-none { background: var(--line-strong); }
+
+.hm-tiers-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+}
+.hm-tiers-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.hm-tiers-legend li b {
+  color: var(--ink-1);
+  font-weight: var(--fw-bold);
+}
+.hm-tiers-legend li i {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ---- 连续天数小卡 ---- */
+.hm-streak {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.hm-streak-flame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--amber-soft);
+  color: var(--amber-ink);
+}
+
+.hm-streak-num {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-black);
+  line-height: 1.05;
+  letter-spacing: -.04em;
+  color: var(--amber-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.hm-streak-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.hm-streak-text span {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--ink-2);
+}
+.hm-streak-text small {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+/* ---- 右栏最近学习的词：2×2 压缩网格（复用 .hm-words 结构） ---- */
+.hm-side .hm-words,
+.hm-side .hm-empty { margin-top: 0; }
+
+.hm-side .hm-words { padding: var(--sp-4); }
+.hm-side .hm-words-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+  overflow: visible;
+  padding-bottom: 0;
+  scroll-snap-type: none;
+}
+.hm-side .hm-word {
+  flex: initial;
+  min-height: 74px;
+  padding: var(--sp-2) var(--sp-3) var(--sp-4);
+}
+
+.hm-side .hm-empty {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+
+/* ---- 生词本一行文字入口 ---- */
+.hm-nb-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast), color var(--dur-fast);
+}
+[data-theme="dark"] .hm-nb-entry {
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+}
+.hm-nb-entry:hover {
+  color: var(--brand);
+  transform: translateY(-1px);
+  box-shadow: var(--sh-2), inset 0 0 0 1px var(--brand-line);
+}
+.hm-nb-entry svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: color var(--dur-fast);
+}
+.hm-nb-entry:hover svg { color: var(--brand); }
+
+/* ---------------- 窄窗口 ---------------- */
+@media (max-width: 720px) {
+  .hm-hero { padding: var(--sp-4); gap: var(--sp-4); }
+  .hm-hero-num { font-size: calc(var(--fs-3xl) * 1.4); }
+  .hm-hero .plan-buttons { flex-basis: 100%; min-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-nb-entry { transition: none; }
+  .hm-nb-entry:hover { transform: none; }
+  .hm-hero .plan-buttons .btn-plan { transition: none; }
+  .hm-hero .plan-buttons .btn-plan:hover { transform: none; }
 }

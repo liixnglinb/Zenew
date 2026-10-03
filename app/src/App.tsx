@@ -139,8 +139,6 @@ function Shell({ meEmail }: { meEmail: string }) {
       <a className="sr-only" href="#main-content">
         跳到主要内容
       </a>
-      <div className="cloud" style={{ width: 520, height: 520, top: -180, right: -120 }} aria-hidden />
-      <div className="cloud" style={{ width: 420, height: 420, bottom: -160, left: -100, animationDelay: '8s' }} aria-hidden />
       <TitleBar />
 
       <div className={`shell${navCollapsed ? ' is-collapsed' : ''}${immersive ? ' is-immersive' : ''}`}>

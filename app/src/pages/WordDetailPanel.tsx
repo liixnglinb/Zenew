@@ -4,7 +4,8 @@ import { useMemo, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, CalendarClock, Scissors, Star, Volume2 } from 'lucide-react'
 import { IconButton, Tag } from '../ui'
 import type { BookWordRow } from '../db'
-import { wordVisual } from '../study'
+import { emblemOf } from '../emblem'
+import '../polish.css'
 
 /** 单词卡 back JSON 结构（与 ReviewSession 保持一致的读法） */
 export interface WordBack {
@@ -123,7 +124,7 @@ export default function WordDetailPanel({
   onClose,
 }: WordDetailPanelProps) {
   const back = useMemo(() => parseWordBack(row.back), [row.back])
-  const visual = useMemo(() => wordVisual(row.front), [row.front])
+  const emb = useMemo(() => emblemOf(row.front), [row.front])
   const senses = back?.m ?? []
   const sentences = back?.s ?? []
   const due = dueText(row.due, today)
@@ -207,15 +208,21 @@ export default function WordDetailPanel({
             </b>
           </div>
         </div>
-        {/* 字形记忆卡：由词形决定的确定性渐变色 + 首字母，不伪造照片 */}
+        {/* 字形记忆卡：与学习页/训练页同一套确定性形义徽标（emblem.ts），不伪造照片 */}
         <div
           className="wl-visual"
-          style={{ background: `linear-gradient(150deg, ${visual.from}, ${visual.to})` }}
+          style={{ background: `linear-gradient(150deg, ${emb.from}, ${emb.to})` }}
           role="img"
           aria-label={`${row.front} 的字形记忆卡`}
         >
+          <span
+            className="emblem-pattern"
+            aria-hidden
+            style={{ backgroundImage: `url("${emb.pattern}")`, transform: `rotate(${emb.angle}deg)` }}
+          />
+          <span className="emblem-halo" aria-hidden />
           <span className="wl-visual-glyph" aria-hidden>
-            {visual.glyph}
+            {emb.glyph}
           </span>
           <span className="wl-visual-caption">{row.front}</span>
         </div>

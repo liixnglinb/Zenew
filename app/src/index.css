@@ -19,27 +19,27 @@
   /* ---------- 品牌与强调色（哑光一档：降饱和但保住 AA） ----------
      白底对比：#3A63E0 5.3:1 / #476FD8 4.6:1 / #2E52C2 7.3:1
      soft 底 上 brand-ink：#2A4CAE on #ECF0FB = 7.1:1 */
-  --brand: #3A63E0;
-  --brand-hi: #476FD8;
-  --brand-lo: #2E52C2;
-  --brand-ink: #2A4CAE;
-  --brand-soft: #ECF0FB;
-  --brand-line: #CDD8F2;
-  --brand-glow: rgba(58, 99, 224, .20);
+  --brand: #2B57D8;
+  --brand-hi: #3D66DE;
+  --brand-lo: #1F42B5;
+  --brand-ink: #142866;
+  --brand-soft: #EEF2FC;
+  --brand-line: #C7D2EE;
+  --brand-glow: rgba(43, 87, 216, .20);
 
-  --mint: #12B39A;
-  --mint-hi: #2ED0B4;
-  --mint-soft: #E2F7F3;
-  --mint-ink: #0B7466;
+  --mint: #1B8A6B;
+  --mint-hi: #3AA98D;
+  --mint-soft: #E4F2EE;
+  --mint-ink: #0E6B58;
 
-  --amber: #FF9F1C;
-  --amber-hi: #FFBB55;
-  --amber-soft: #FFF3E3;
-  --amber-ink: #A25A00;
+  --amber: #C27803;
+  --amber-hi: #D89A2E;
+  --amber-soft: #F6EFE2;
+  --amber-ink: #7A5204;
 
-  --coral: #F2545B;
-  --coral-soft: #FDECEC;
-  --coral-ink: #AE2E35;
+  --coral: #CE3A3A;
+  --coral-soft: #F7E9E9;
+  --coral-ink: #A32E2E;
 
   --navy: #16264C;
   --navy-2: #1E3568;
@@ -108,11 +108,11 @@
   --press: inset 0 1px 2px rgba(18, 33, 47, .10);
 
   /* ---------- 背景（多层天空：压饱和、压对比） ---------- */
-  --sky-1: #C6D8EE;
-  --sky-2: #DCE8F8;
-  --sky-3: #EBF2FA;
-  --sky-4: #F7FAFE;
-  --glow: rgba(255, 255, 255, .88);
+  --sky-1: #EDF0F4;
+  --sky-2: #F0F3F6;
+  --sky-3: #F5F7F9;
+  --sky-4: #FAFBFC;
+  --glow: rgba(255, 255, 255, .5);
   --dot: rgba(58, 99, 224, .05);
 
   /* ---------- 极细颗粒材质（≤3% 透明；覆盖层用 --grain-a） ---------- */
@@ -222,8 +222,8 @@
 
 [data-theme="dark"] {
   /* 深色下同样用降饱和的 #6E9BFF 系（#6E9BFF on #182739 = 6.4:1） */
-  --brand: #6E9BFF;
-  --brand-hi: #86AEFF;
+  --brand: #7C9BE8;
+  --brand-hi: #8FABEA;
   --brand-lo: #5484EE;
   --brand-ink: #C6D8FF;
   --brand-soft: rgba(110, 155, 255, .16);
@@ -258,15 +258,15 @@
   --brand-deep: #86AEFF;
 
   /* 卡片底 #182739 系 */
-  --n-0: #182739;
-  --n-1: #1E2F45;
-  --n-2: #263952;
+  --n-0: #151C2C;
+  --n-1: #1A2233;
+  --n-2: #202A3C;
   --n-3: rgba(255, 255, 255, .08);
   --n-4: rgba(255, 255, 255, .15);
   --ink: #EAF1FA;
-  --ink-1: #F2F7FF;
-  --ink-2: #A9BFD6;
-  --ink-3: #93A8BF;
+  --ink-1: #F0F4FA;
+  --ink-2: #9EADC6;
+  --ink-3: #7E90A8;
   --paper: var(--n-0);
   --paper-2: var(--n-1);
   --paper-sunken: var(--n-2);
@@ -289,10 +289,10 @@
   --card-fill-2: linear-gradient(180deg, #1B2A3D 0%, #17263A 100%);
   --press: inset 0 1px 2px rgba(0, 0, 0, .34);
 
-  --sky-1: #0B1526;
-  --sky-2: #101F38;
-  --sky-3: #152A4A;
-  --sky-4: #1A3358;
+  --sky-1: #0E131F;
+  --sky-2: #10161F;
+  --sky-3: #131A28;
+  --sky-4: #171F30;
   --glow: rgba(110, 155, 255, .16);
   --dot: rgba(255, 255, 255, .04);
 
@@ -340,7 +340,7 @@ body::before {
 }
 body.elder { --scale: 1.12; }
 
-h1, h2, h3, h4 { line-height: var(--lh-tight); letter-spacing: var(--tracking-tight); font-weight: var(--fw-black); color: var(--ink-1); }
+h1, h2, h3, h4 { line-height: var(--lh-tight); letter-spacing: -.01em; font-weight: var(--fw-bold); color: var(--ink-1); }
 button { font-family: inherit; cursor: pointer; color: inherit; }
 input, select, textarea { font-family: inherit; }
 ::placeholder { color: var(--ink-3); }
@@ -392,7 +392,7 @@ input, select, textarea { font-family: inherit; }
   display: inline-flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-2);
 }
 .kicker::after { content: ""; flex: 0 0 28px; height: 1px; background: linear-gradient(90deg, var(--brand-line), transparent); }
-.page-title { font-size: var(--fs-3xl); font-weight: var(--fw-black); letter-spacing: -.03em; color: var(--ink-1); }
+.page-title { font-size: var(--fs-3xl); font-weight: var(--fw-bold); letter-spacing: -.01em; color: var(--ink-1); }
 .page-sub { color: var(--ink-2); font-size: var(--fs-sm); margin: var(--sp-2) 0 var(--sp-5); line-height: var(--lh-snug); }
 .section-label {
   font-size: var(--fs-micro); font-weight: var(--fw-semibold); color: var(--ink-3);
@@ -800,7 +800,7 @@ kbd {
    ============================================================ */
 .page-header { display: flex; align-items: center; gap: var(--sp-3); min-height: 44px; }
 .page-header-main { flex: 1; min-width: 0; }
-.page-header-title { font-size: var(--fs-2xl); font-weight: var(--fw-black); letter-spacing: -.03em; color: var(--ink-1); }
+.page-header-title { font-size: var(--fs-2xl); font-weight: var(--fw-bold); letter-spacing: -.01em; color: var(--ink-1); }
 .page-header-actions { display: flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
 
 .breadcrumb { display: flex; align-items: center; gap: 7px; font-size: var(--fs-xs); color: var(--ink-3); flex-wrap: wrap; }
@@ -1165,14 +1165,20 @@ button.update-pill:hover { box-shadow: var(--sh-1); }
 [data-theme="dark"] .choice-cell { box-shadow: var(--sh-1), inset 0 0 0 1px var(--line); }
 .choice-cell:hover:not(:disabled) { transform: translateY(-3px); box-shadow: var(--sh-2); }
 .choice-cell:disabled { cursor: default; }
-.choice-cell.is-right { background: linear-gradient(140deg, var(--mint) 0%, var(--mint-hi) 100%); color: #fff; box-shadow: 0 12px 28px -8px rgba(18, 179, 154, .5), var(--sh-inset); }
+.choice-cell.is-right { background: var(--mint); color: #fff; box-shadow: 0 12px 28px -8px rgba(18, 179, 154, .45), var(--sh-inset); animation: successGlow .6s cubic-bezier(.16, 1, .3, 1) forwards; }
 .choice-cell.is-wrong { background: var(--coral-soft); color: var(--coral-ink); box-shadow: inset 0 0 0 1.5px var(--coral); }
 .choice-cell.is-dim { opacity: .42; background: var(--n-1); box-shadow: none; }
 .choice-cell .choice-pos { font-family: var(--mono); font-size: var(--fs-micro); font-style: italic; color: var(--ink-3); }
 .choice-cell.is-right .choice-pos { color: rgba(255, 255, 255, .85); }
 .choice-tick { position: absolute; right: -7px; top: -9px; width: 30px; height: 30px; border-radius: var(--r-pill); background: var(--mint); color: #fff; display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--sh-2), inset 0 0 0 3px var(--card); animation: pop var(--dur-base) var(--ease-spring) both; }
 
-.celebrate { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; }
+.celebrate { display: none; }
+/* 答对反馈改为克制的边缘脉冲（新评审 §6：高频刷题不宜全屏彩纸） */
+@keyframes successGlow {
+  0% { box-shadow: 0 0 0 0 rgba(27, 138, 107, .4); }
+  70% { box-shadow: 0 0 0 9px rgba(27, 138, 107, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(27, 138, 107, 0); }
+}
 .confetti { position: absolute; top: 0; width: 10px; height: 15px; border-radius: 3px; opacity: 0; animation: confetti-fall 1.6s ease-in forwards; }
 .answer-bubble {
   position: absolute; right: var(--sp-4); bottom: -18px; z-index: 6; padding: 12px 18px; border-radius: var(--r-md);

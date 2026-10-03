@@ -1,7 +1,8 @@
-// 学习排行榜：赛季制段位星球 + 领奖台 + 榜单
-// ⚠ 榜单同侪为本地演示数据（用于展示界面结构与交互），「我」的分数由真实学习记录计算。
-// 统一使用 src/ui 组件库：PageHeader / Avatar / Tag / Progress / Pagination / 三态 / useToast；深色页保留 .dark-page
-import { useEffect, useState, type CSSProperties } from 'react'
+// 学习排行榜：赛季横幅（星空只保留为横幅内的渐变光晕）+ 段位 + 领奖台 + 榜单
+// 榜单同侪为本地演示数据（用于展示界面结构与交互），「我」的分数由真实学习记录计算。
+// 统一使用 src/ui 组件库：PageHeader / Avatar / Tag / Progress / Pagination / 三态 / useToast；
+// 整页不再用 .dark-page，全部跟随主题令牌（样式见 src/polish.css）。
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Crown, FastForward, Info, Lock, Medal, RefreshCw, Trophy } from 'lucide-react'
 import { getDb } from '../db'
@@ -20,6 +21,7 @@ import {
   useAsync,
   useToast,
 } from '../ui'
+import '../polish.css'
 
 interface Peer {
   name: string
@@ -51,27 +53,6 @@ const ORDINAL = ['第 1 名', '第 2 名', '第 3 名']
 /** 赛季分口径：近 30 天复习数 × REVIEW_WEIGHT + 已学词数 × LEARNED_WEIGHT */
 const REVIEW_WEIGHT = 6
 const LEARNED_WEIGHT = 2
-
-/**
- * 深色页面的局部样式：只用既有 token 与 color-mix 承接组件库默认的浅色取值，
- * 不写死 hex / px，浅色主题下同样可读（.dark-page 背景不变）。
- */
-const DARK_TEXT: CSSProperties = { color: 'var(--ink-1)' }
-const DARK_HEADER_STYLE = `
-  .dark-page .page-header-title { color: var(--ink-1); }
-  .dark-page .kicker { color: var(--ink-3); }
-  .dark-page .breadcrumb, .dark-page .breadcrumb button, .dark-page .breadcrumb .sep { color: var(--ink-2); }
-  .dark-page .breadcrumb button:hover { color: var(--ink-1); }
-  .dark-page .page-btn { background: color-mix(in srgb, var(--ink-1) 12%, transparent); color: var(--ink-1); }
-  .dark-page .page-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--ink-1) 20%, transparent); color: var(--ink-1); }
-  .dark-page .page-btn[aria-current="page"] { background: var(--brand); color: var(--paper); }
-  .dark-page .progress-line { background: color-mix(in srgb, var(--ink-1) 16%, transparent); }
-  .dark-page .rank-me-tag { background: color-mix(in srgb, var(--ink-1) 16%, transparent); color: var(--ink-1); }
-`
-const DARK_BTN: CSSProperties = {
-  background: 'color-mix(in srgb, var(--ink-1) 12%, transparent)',
-  color: 'var(--ink-1)',
-}
 
 interface RankData {
   score: number
@@ -177,8 +158,7 @@ export default function Rank() {
   )
 
   return (
-    <div className="dark-page page-in">
-      <style>{DARK_HEADER_STYLE}</style>
+    <div className="page-in">
       <PageHeader
         title="词书排行榜"
         kicker="RANK / SEASON"
@@ -204,6 +184,30 @@ export default function Rank() {
 
       {!loading && !error && data && (
         <>
+          {/* 赛季横幅：星空/季赛氛围只保留为横幅内的渐变光晕（.rk-hero，见 polish.css），内放赛季信息与倒计时 */}
+          <div className="rk-hero">
+            <div className="rk-hero-stage">
+              <div className="rk-hero-line">
+                <Trophy size={14} aria-hidden />
+                <span>
+                  {stage} 段 · {stageInfo.name}
+                  {nextStage ? ` · 距 ${nextStage.name} 还差 ${formatNumber(toNext)} 分` : ' · 已是最高段位'}
+                </span>
+              </div>
+              <Progress
+                value={score - stageInfo.min}
+                max={nextStage ? nextStage.min - stageInfo.min : Math.max(1, score - stageInfo.min)}
+                label={nextStage ? `距离 ${nextStage.name} 还差 ${formatNumber(toNext)} 分` : '已是最高段位'}
+              />
+            </div>
+            <div className="rk-hero-timer">
+              <span className="rk-hero-count tnum" aria-label={`赛季剩余 ${Math.floor(left / 86400000)} 天`}>
+                还有 {formatCountdown(left)}结束
+              </span>
+              <span className="rk-hero-sub">赛季倒计时</span>
+            </div>
+          </div>
+
           {/* 段位星球：段位/解锁状态不只靠颜色，配数字、星名与「未解锁」文字 */}
           <div className="star-nav" role="list" aria-label={`赛季段位，当前 ${stage} 段 ${stageInfo.name}`}>
             {STAGES.map((s, i) => {
@@ -224,25 +228,6 @@ export default function Rank() {
                 </span>
               )
             })}
-          </div>
-
-          <div className="season">
-            <div className="season-stage inline">
-              <Trophy size={14} aria-hidden />
-              <span>
-                {stage} 段 · {stageInfo.name}
-                {nextStage ? ` · 距 ${nextStage.name} 还差 ${formatNumber(toNext)} 分` : ' · 已是最高段位'}
-              </span>
-            </div>
-            <div className="season-timer tnum" aria-label={`赛季剩余 ${Math.floor(left / 86400000)} 天`}>
-              还有 {formatCountdown(left)}结束
-            </div>
-            <Progress
-              value={score - stageInfo.min}
-              max={nextStage ? nextStage.min - stageInfo.min : Math.max(1, score - stageInfo.min)}
-              label={nextStage ? `距离 ${nextStage.name} 还差 ${formatNumber(toNext)} 分` : '已是最高段位'}
-              style={{ width: 'min(320px, 100%)' }}
-            />
           </div>
 
           {/* 领奖台：名次用文字 + 奖牌图标标注，不只靠颜色 */}
@@ -293,23 +278,19 @@ export default function Rank() {
                 {row(me, meIndex + 1)}
               </div>
               <div style={{ padding: 'var(--sp-2) var(--sp-4)' }}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<FastForward size={14} />}
-                  style={DARK_BTN}
-                  onClick={() => setPage(mePage)}
-                >
+                <Button variant="ghost" size="sm" icon={<FastForward size={14} />} onClick={() => setPage(mePage)}>
                   回到我所在的第 {mePage} 页
                 </Button>
               </div>
             </>
           )}
 
-          <div className="dark-note" style={DARK_TEXT}>
-            <Info size={12} style={{ verticalAlign: -2, marginRight: 4 }} aria-hidden />
-            榜单同侪为本地演示数据，仅「我」的分数由真实学习记录计算（近 30 天复习 × {REVIEW_WEIGHT} + 已学词数 ×{' '}
-            {LEARNED_WEIGHT}）
+          <div className="rank-note">
+            <Info size={12} aria-hidden />
+            <span>
+              榜单同侪为本地演示数据，仅「我」的分数由真实学习记录计算（近 30 天复习 × {REVIEW_WEIGHT} + 已学词数 ×{' '}
+              {LEARNED_WEIGHT}）
+            </span>
           </div>
         </>
       )}

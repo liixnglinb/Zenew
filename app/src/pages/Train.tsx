@@ -1,7 +1,7 @@
 // 训练页：/vocab/:key/train/:mode
 // 五种训练模式（速听 / 速刷 / 单词选义 / 拼写 / 听写）+ 听写设置面板。
 // 评分与斩词完全沿用学习页的写库方式（见 train.ts 的 commitTrainCard / suspendCard）。
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -11,9 +11,12 @@ import {
   Eye,
   Headphones,
   Image,
+  Inbox,
   Lightbulb,
   ListChecks,
+  PartyPopper,
   Pause,
+  PencilLine,
   PenLine,
   Play,
   Scissors,
@@ -24,7 +27,8 @@ import {
   Zap,
 } from 'lucide-react'
 import { nowIso, saveSession, type QueueItem } from '../db'
-import { buildWordChoices, tone, buzz, wordVisual, type ChoiceSet } from '../study'
+import { buildWordChoices, tone, buzz, type ChoiceSet } from '../study'
+import { emblemOf } from '../emblem'
 import { Button, IconButton, Progress, Switch, Tag, useToast } from '../ui'
 import { BottomSheet } from '../ui/overlays'
 import { useHotkeys } from '../ui/desktop'
@@ -57,6 +61,7 @@ import {
   type TrainMode,
 } from '../train'
 import '../train.css'
+import '../polish.css'
 
 type Phase = 'typing' | 'answered' | 'done'
 type DockMode = TrainMode | 'dock'
@@ -115,7 +120,7 @@ export default function Train() {
   const total = queue.length
   const back = useMemo(() => (item ? parseWordBack(item.back) : null), [item])
   const sense = item ? senseText(item.back) : ''
-  const visual = useMemo(() => wordVisual(item?.front || 'A'), [item?.front])
+  const emb = useMemo(() => emblemOf(item?.front || 'A'), [item?.front])
   const prevItem = idx > 0 ? queue[idx - 1] : null
   const prevSense = prevItem ? senseText(prevItem.back) : ''
   const isLast = idx + 1 >= total
@@ -579,7 +584,9 @@ export default function Train() {
       <div className="train">
         <div className="train-body">
           <div className="train-empty">
-            <div className="train-empty-art">{total ? '🎉' : '📭'}</div>
+            <div className="train-empty-art" aria-hidden>
+            {total ? <PartyPopper size={44} style={{ color: 'var(--amber)' }} /> : <Inbox size={44} style={{ color: 'var(--ink-3)' }} />}
+          </div>
             <div className="train-empty-title">{total ? `${MODE_META[activeMode].label}完成` : '这本书暂时没有可训练的词'}</div>
             <div className="train-empty-desc">
               {total
@@ -673,8 +680,14 @@ export default function Train() {
           <>
             <div className={`train-media-wrap${showMedia ? '' : ' is-hidden'}`}>
               {showMedia ? (
-                <div className="media-card" style={{ background: `linear-gradient(150deg, ${visual.from}, ${visual.to})` }}>
-                  <span className="media-letter">{visual.glyph}</span>
+                <div className="media-card media-card--emblem" style={{ background: `linear-gradient(150deg, ${emb.from}, ${emb.to})` }}>
+                  <span
+                    className="emblem-pattern"
+                    aria-hidden
+                    style={{ backgroundImage: `url("${emb.pattern}")`, transform: `rotate(${emb.angle}deg)` } as CSSProperties}
+                  />
+                  <span className="emblem-halo" aria-hidden />
+                  <span className="media-letter">{emb.glyph}</span>
                   <span className="media-tag">LISTEN</span>
                   <span className="media-caption">
                     {item.course_name} · {item.topic_title}
@@ -786,8 +799,14 @@ export default function Train() {
         {activeMode === 'choice' && item && (
           <>
             {showMedia && (
-              <div className="media-card" style={{ background: `linear-gradient(150deg, ${visual.from}, ${visual.to})` }}>
-                <span className="media-letter">{visual.glyph}</span>
+              <div className="media-card media-card--emblem" style={{ background: `linear-gradient(150deg, ${emb.from}, ${emb.to})` }}>
+                <span
+                  className="emblem-pattern"
+                  aria-hidden
+                  style={{ backgroundImage: `url("${emb.pattern}")`, transform: `rotate(${emb.angle}deg)` } as CSSProperties}
+                />
+                <span className="emblem-halo" aria-hidden />
+                <span className="media-letter">{emb.glyph}</span>
                 <span className="media-tag">WORD</span>
                 <span className="media-caption">
                   {item.course_name} · {item.topic_title}
@@ -872,7 +891,9 @@ export default function Train() {
           <>
             {activeMode === 'dictation' && !dictStarted ? (
               <div className="train-dictation-start">
-                <div className="train-dictation-art">✍️</div>
+                <div className="train-dictation-art" aria-hidden>
+                  <PencilLine size={40} style={{ color: 'var(--brand)' }} />
+                </div>
                 <div className="train-dictation-title">准备好笔纸，开始听写</div>
                 <div className="train-dictation-rows">
                   <div className="train-dictation-row">
@@ -906,8 +927,14 @@ export default function Train() {
             ) : (
               <>
                 {showMedia && activeMode === 'spell' && (
-                  <div className="media-card" style={{ background: `linear-gradient(150deg, ${visual.from}, ${visual.to})` }}>
-                    <span className="media-letter">{visual.glyph}</span>
+                  <div className="media-card media-card--emblem" style={{ background: `linear-gradient(150deg, ${emb.from}, ${emb.to})` }}>
+                    <span
+                      className="emblem-pattern"
+                      aria-hidden
+                      style={{ backgroundImage: `url("${emb.pattern}")`, transform: `rotate(${emb.angle}deg)` } as CSSProperties}
+                    />
+                    <span className="emblem-halo" aria-hidden />
+                    <span className="media-letter">{emb.glyph}</span>
                     <span className="media-tag">SPELL</span>
                     <span className="media-caption">
                       {item.course_name} · {item.topic_title}
