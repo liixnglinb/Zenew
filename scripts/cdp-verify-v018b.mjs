@@ -1,6 +1,6 @@
 // v0.18.0 交互验收：①选义作答（评分落库）②听写设置面板 ③深色词表
 import { writeFileSync, mkdirSync } from 'fs'
-const OUT = 'C:/Users/李星历/Desktop/课程学习软件/视频解析/v018-shots'
+const OUT = '../视频解析/v018-shots'
 mkdirSync(OUT, { recursive: true })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 

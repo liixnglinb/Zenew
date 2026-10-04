@@ -2,7 +2,7 @@
 // 用法：先以 WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222 启动 Zenew，再 node scripts/cdp-verify-v018.mjs
 import { writeFileSync, mkdirSync } from 'fs'
 
-const OUT = 'C:/Users/李星历/Desktop/课程学习软件/视频解析/v018-shots'
+const OUT = '../视频解析/v018-shots'
 mkdirSync(OUT, { recursive: true })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 

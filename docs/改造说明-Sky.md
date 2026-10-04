@@ -88,7 +88,7 @@
 ## 五、构建与验证
 
 ```powershell
-cd C:\Users\李星历\Desktop\课程学习软件\Zenew\app
+cd .\app
 node node_modules\typescript\bin\tsc -p tsconfig.app.json --noEmit   # 类型校验：0 错误
 node node_modules\vite\bin\vite.js build                            # 生产构建：通过
 ```

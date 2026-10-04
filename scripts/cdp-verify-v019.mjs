@@ -1,6 +1,6 @@
 // v0.19.0 美术风格验收：侧栏圆角/材质、按钮、首页 bento、书封、文案精简、浅深色
 import { writeFileSync, mkdirSync } from 'fs'
-const OUT = 'C:/Users/李星历/Desktop/课程学习软件/视频解析/v019-shots'
+const OUT = '../视频解析/v019-shots'
 mkdirSync(OUT, { recursive: true })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 

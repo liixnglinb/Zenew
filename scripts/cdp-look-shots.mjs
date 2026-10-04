@@ -15,7 +15,7 @@ await send('Page.enable')
 const shot = async (name) => {
   const m = await send('Page.captureScreenshot', { format: 'png' })
   const { writeFileSync } = await import('fs')
-  writeFileSync(`C:/Users/李星历/Desktop/课程学习软件/Zenew/release/look-${name}.png`, Buffer.from(m.result.data, 'base64'))
+  writeFileSync(`./release/look-${name}.png`, Buffer.from(m.result.data, 'base64'))
   console.log('saved', name)
 }
 const pages = [

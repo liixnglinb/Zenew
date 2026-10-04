@@ -2,7 +2,7 @@
 // 只 mock 网络层，本地 SQLite 与真实 UI 全部照旧；不作答、不写库
 import { writeFileSync, mkdirSync } from 'fs'
 
-const OUT = 'C:/Users/李星历/Desktop/课程学习软件/视频解析/app-shots'
+const OUT = '../视频解析/app-shots'
 mkdirSync(OUT, { recursive: true })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 

@@ -1,6 +1,6 @@
 // 深色主题 + 滚动到底部检查（确认底部坞不永久遮挡内容）
 import { writeFileSync } from 'fs'
-const OUT = 'C:/Users/李星历/Desktop/课程学习软件/视频解析/review-shots'
+const OUT = '../视频解析/review-shots'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const list = await (await fetch('http://127.0.0.1:9222/json/list')).json()

@@ -16,7 +16,7 @@ const shot = async (name) => {
   const m = await send('Page.captureScreenshot', { format: 'png' })
   if (!m.result?.data) { console.log('shot fail', JSON.stringify(m).slice(0, 200)); return }
   const { writeFileSync } = await import('fs')
-  writeFileSync(`C:/Users/李星历/Desktop/课程学习软件/Zenew/release/ui-${name}.png`, Buffer.from(m.result.data, 'base64'))
+  writeFileSync(`./release/ui-${name}.png`, Buffer.from(m.result.data, 'base64'))
   console.log('saved', name)
 }
 await send('Page.enable')

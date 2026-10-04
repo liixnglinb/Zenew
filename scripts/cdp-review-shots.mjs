@@ -1,7 +1,7 @@
 // 按应用默认窗口尺寸（1280×820）截图，用于设计评审
 import { writeFileSync, mkdirSync } from 'fs'
 
-const OUT = 'C:/Users/李星历/Desktop/课程学习软件/视频解析/review-shots'
+const OUT = '../视频解析/review-shots'
 mkdirSync(OUT, { recursive: true })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
