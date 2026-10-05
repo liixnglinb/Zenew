@@ -1,18 +1,13 @@
-; Zenew 安装器钩子
-; 1) 安装位置防呆  2) 注册 zenew:// 深链协议（HKCU，无需管理员）
+; Zenew 安装器钩子：注册 zenew:// 深链协议（HKCU，无需管理员）
 ; 深链最初为「付款到账后把软件拉到前台」而设；付费体系已于 2026-10-03 下线，
 ; 协议与单实例转发保留（配合 tauri-plugin-single-instance，仍可从外部唤起已运行的窗口）。
 
-; 防呆：不允许把软件装进「桌面」下（含桌面里的源码仓库目录）。
-; v0.21.0 及之前本机就装进了 桌面\课程学习软件\Zenew，之后每次升级 NSIS 都沿用这个错误位置，
-; 把 app.exe / uninstall.exe 混进 git 工作区。这里强制回落到 per-user 标准位置。
-; 用纯 NSIS 指令做前缀比较，不依赖 LogicLib（hook 的 include 环境不确定）。
-!macro NSIS_HOOK_PREINSTALL
-  StrLen $9 "$DESKTOP"
-  StrCpy $8 "$INSTDIR" $9
-  StrCmp $8 "$DESKTOP" 0 +2
-  StrCpy $INSTDIR "$LOCALAPPDATA\Programs\Zenew"
-!macroend
+; ⚠ 不要在本文件里用 $0–$9 写「安装位置防呆」之类的逻辑。
+; 2026-10-05 实测教训：曾在 NSIS_HOOK_PREINSTALL 里用 StrLen $9 "$DESKTOP" / StrCpy $8 ...
+; 做桌面路径检测，结果 makensis 正常出包、安装器退出码 0、注册表三个键值都写对了，
+; 但 **一个文件都没拷进 $INSTDIR**（Programs\Zenew 根本不存在）——
+; Tauri 的 installer.nsi 模板自己占用 $0–$9 传递解压与安装路径，hook 里覆写会静默破坏后续 File 段。
+; 要做安装位置约束，应改用 Tauri 官方 nsis 配置项（installMode / perUser）或经完整安装验证的方案。
 
 !macro NSIS_HOOK_POSTINSTALL
   WriteRegStr HKCU "Software\Classes\zenew" "" "URL:Zenew Protocol"

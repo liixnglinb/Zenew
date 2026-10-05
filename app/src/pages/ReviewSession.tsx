@@ -813,7 +813,7 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
               </div>
             )}
 
-            {/* AI 辨析气泡 */}
+            {/* 易混词辨析气泡（离线编辑距离，非 AI） */}
             {similar && similar.length > 0 && (
               <button
                 className="ai-bubble"
@@ -823,7 +823,7 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
                   setShowDetail(true)
                 }}
               >
-                <span className="ai-mark">Ai</span>
+                <span className="ai-mark">辨析</span>
                 和 {similar[0].w} 搞混了？帮你辨析
                 <span className="spacer" />
                 <ArrowRight size={15} style={{ color: 'var(--ink-3)' }} />
@@ -900,7 +900,7 @@ export default function ReviewSession({ initialQueue }: { initialQueue?: QueueIt
           disabled={phase === 'front'}
         >
           <Sparkles size={17} />
-          Ai
+          辨析
         </button>
         <button className="act" title="提示中文" onClick={() => setShowHint((v) => !v)}>
           <Lightbulb size={17} />

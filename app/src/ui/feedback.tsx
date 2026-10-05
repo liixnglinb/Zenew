@@ -82,7 +82,7 @@ export function NetBanner({ online, onRetry }: { online: boolean; onRetry?: () =
     <div className="net-banner is-offline" role="status" aria-live="polite">
       <WifiOff size={16} aria-hidden />
       <span style={{ flex: 1 }}>
-        当前离线：本地学习、复习、统计照常可用；AI 生成与账号相关操作需要联网。
+        当前离线：学习、复习、查词与统计全部照常可用（词库已内置），只有检查更新需要联网。
       </span>
       {onRetry && (
         <Button variant="outline" size="xs" icon={<RefreshCw size={12} />} onClick={onRetry}>
