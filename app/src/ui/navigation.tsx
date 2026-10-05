@@ -138,7 +138,6 @@ export function PageHeader({
           </button>
         )}
         <div className="page-header-main">
-          {kicker && <div className="kicker">{kicker}</div>}
           <h1 className="page-header-title">{title}</h1>
         </div>
         {actions && <div className="page-header-actions">{actions}</div>}

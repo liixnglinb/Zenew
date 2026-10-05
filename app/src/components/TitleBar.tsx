@@ -51,7 +51,6 @@ export default function TitleBar() {
     <header
       data-tauri-drag-region
       className={`titlebar${fs ? ' titlebar-hidden' : ''}`}
-      style={{ height: 44 }}
       onDoubleClick={() => getCurrentWindow().toggleMaximize().catch(() => {})}
     >
       <div className="titlebar-brand" data-tauri-drag-region>
@@ -61,7 +60,7 @@ export default function TitleBar() {
       <UpdatePill />
       <div className="titlebar-spacer" data-tauri-drag-region />
       <button className={btn} title="最小化" aria-label="最小化" onClick={(e) => { e.stopPropagation(); getCurrentWindow().minimize().catch(() => {}) }}>
-        <Minus size={14} strokeWidth={1.8} />
+        <Minus size={13} strokeWidth={1.6} />
       </button>
       <button
         className={btn}
@@ -69,10 +68,10 @@ export default function TitleBar() {
         aria-label={maximized ? '还原' : '最大化'}
         onClick={(e) => { e.stopPropagation(); getCurrentWindow().toggleMaximize().catch(() => {}) }}
       >
-        {maximized ? <Copy size={12} strokeWidth={1.8} /> : <Square size={12} strokeWidth={1.8} />}
+        {maximized ? <Copy size={11} strokeWidth={1.6} /> : <Square size={11} strokeWidth={1.6} />}
       </button>
       <button className={`${btn} titlebar-close`} title="关闭到托盘（右下角图标可恢复）" aria-label="关闭" onClick={(e) => { e.stopPropagation(); getCurrentWindow().hide().catch(() => {}) }}>
-        <X size={14} strokeWidth={1.8} />
+        <X size={13} strokeWidth={1.6} />
       </button>
     </header>
   )

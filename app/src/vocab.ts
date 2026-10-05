@@ -1,5 +1,7 @@
 // 英语词书模块：四本内置词书（四级/六级/高频词/基础英语）+ 全量查词
-// 数据经 CDN（lxlrwxs.top/zenew/dict/*.json），词条入本地库走统一的 FSRS 复习循环。
+// 数据随安装包内置在 app/public/dict/（构建时由 Vite 原样拷进 dist/dict/，Tauri 同源伺服），
+// 因此查词、导入词书与形近词完全离线，不需要网络。
+// 刷新数据：python scripts/build_vocab.py 生成到站点 CDN 目录后，把 5 个 JSON 覆盖到 app/public/dict/。
 // 存储沿用 course/topic 两张表：一本词书 = course 一行（kind='vocab'，name 即词书名）；25 词一组 = topic 一行（title「第 N 组」）。
 // 每词一张 card（type='word'）：front=单词，back=紧凑 JSON（释义/音标/例句），由 ReviewSession 专属渲染。
 
@@ -28,7 +30,7 @@ export const WORD_BOOKS: WordBook[] = [
 
 import type Database from '@tauri-apps/plugin-sql'
 
-const CDN = 'https://lxlrwxs.top/zenew/dict'
+const DICT_BASE = '/dict'
 
 export interface IndexItem {
   w: string
@@ -42,7 +44,7 @@ let indexPromise: Promise<IndexItem[]> | null = null
 /** 全量搜索索引（14,625 词：四书 + 考研 + 托福 + SAT，懒加载；失败不缓存，下次自动重试） */
 export function loadIndex(): Promise<IndexItem[]> {
   if (!indexPromise) {
-    indexPromise = fetch(`${CDN}/index.json`)
+    indexPromise = fetch(`${DICT_BASE}/index.json`)
       .then((r) => {
         if (!r.ok) throw new Error('词库索引加载失败')
         return r.json() as Promise<IndexItem[]>
@@ -60,7 +62,7 @@ const bookCache = new Map<string, Promise<VocabEntry[]>>()
 export function loadBook(file: string): Promise<VocabEntry[]> {
   let p = bookCache.get(file)
   if (!p) {
-    p = fetch(`${CDN}/${file}`)
+    p = fetch(`${DICT_BASE}/${file}`)
       .then((r) => {
         if (!r.ok) throw new Error('词书加载失败')
         return r.json() as Promise<VocabEntry[]>

@@ -116,7 +116,7 @@ export function useLastRoute(): void {
 export function getLastRoute(): string | null {
   try {
     const v = localStorage.getItem(ROUTE_KEY)
-    return v && v.startsWith('/') && !v.startsWith('/login') ? v : null
+    return v && v.startsWith('/') ? v : null
   } catch {
     return null
   }

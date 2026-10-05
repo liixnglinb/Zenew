@@ -66,23 +66,6 @@ export function formatCountdown(ms: number): string {
   return `${pad(d)} 天 ${pad(h)} 小时 ${pad(m)} 分 ${pad(s)} 秒`
 }
 
-/** 邮箱脱敏：lxlrwxs@qq.com → l*****s@qq.com */
-export function maskEmail(email: string | null | undefined): string {
-  if (!email) return '未登录'
-  const at = email.indexOf('@')
-  if (at <= 0) return '***'
-  const name = email.slice(0, at)
-  const domain = email.slice(at)
-  if (name.length <= 2) return `${name[0]}*${domain}`
-  return `${name[0]}${'*'.repeat(Math.min(5, name.length - 2))}${name[name.length - 1]}${domain}`
-}
-
-/** 通用脱敏：保留首尾，中间打码（令牌 / 密钥等敏感串） */
-export function maskSecret(value: string, keep = 3): string {
-  if (!value) return ''
-  if (value.length <= keep * 2) return '*'.repeat(value.length)
-  return `${value.slice(0, keep)}${'*'.repeat(Math.max(4, value.length - keep * 2))}${value.slice(-keep)}`
-}
 
 /** 长文本截断（含省略号），用于标题 / 列表项 */
 export function truncate(text: string, max = 42): string {

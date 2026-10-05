@@ -48,12 +48,12 @@ const COVERS: Record<string, CoverSpec> = {
   freq: { from: '#5478CF', to: '#33509B', tag: 'FREQ', sub: '高频', pattern: PATTERN_DOT },
   basic: { from: '#DDA347', to: '#AF7530', tag: 'BASIC', sub: '基础', pattern: PATTERN_RING },
   notebook: { from: '#8875CE', to: '#5F4AA6', tag: 'MY', sub: '生词本', pattern: PATTERN_WAVE },
-  book: { from: '#5478CF', to: '#33509B', tag: 'BOOK', sub: '词书', pattern: PATTERN_DOT },
+  book: { from: '#5478CF', to: '#33509B', tag: '自建', sub: '词书', pattern: PATTERN_DOT },
 }
 
 /** 56×76 程序化书封：左缘书脊 + 1px 高光 + 纹样 + 上下两排文字（哑光，无塑料反光） */
 function BookCover({ bookKey }: { bookKey: string }) {
-  const c = COVERS[bookKey] || COVERS.book
+  const c = COVERS[bookKey] || { ...COVERS.book, tag: bookKey.slice(0, 4) }
   return (
     <div
       className="book-cover"

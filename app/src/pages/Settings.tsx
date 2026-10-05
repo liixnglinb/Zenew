@@ -1,5 +1,5 @@
-// 我的：个人资料 + 学习统计 + 分组设置（学习 / 外观与显示 / 音效 / 数据与账号）
-// 说明：只保留学习与本地数据相关的能力。
+// 我的：学习统计 + 分组设置（学习 / 外观与显示 / 音效 / 数据与更新）
+// 说明：纯本机应用，无账号、无云端生成；只保留学习与本地数据相关的能力。
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getVersion } from '@tauri-apps/api/app'
@@ -8,25 +8,21 @@ import {
   BookOpen,
   Database,
   Languages,
-  LogOut,
   RefreshCw,
-  Server,
   ShieldCheck,
   Sun,
   Trophy,
   Zap,
 } from 'lucide-react'
-import { getServer, setServer, fetchMe, ApiError, type Me } from '../api'
 import { checkUpdate, applyUpdate, type UpdateInfo } from '../updater'
 import { getDb, isTauri, localDayKey } from '../db'
 import { applySettings, getSettings, loadStreak, saveSettings, type LocalSettings } from '../study'
 import { LANGS, setLang, useI18n } from '../lib/i18n'
-import { formatNumber, maskEmail } from '../lib/format'
+import { formatNumber } from '../lib/format'
 import {
   Avatar,
   Button,
   Card,
-  ConfirmDialog,
   ErrorState,
   IconButton,
   LoadingState,
@@ -38,8 +34,6 @@ import {
   useToast,
   useTheme,
 } from '../ui'
-
-const DEFAULT_SERVER = 'https://zenew-api.lxlrwxs.top'
 
 // 本地统计只算词书单词卡（co.kind='vocab' AND c.type='word'）
 const WORD_JOIN = `JOIN card c ON c.id = cs.card_id
@@ -53,17 +47,12 @@ export default function SettingsPage() {
   const { mode, resolved, setMode } = useTheme()
   const { lang } = useI18n()
   const [busyUpdate, runUpdate] = useSubmit()
-  const [busyLogout, runLogout] = useSubmit()
 
-  const [server, setServerUrl] = useState(getServer())
-  const [serverErr, setServerErr] = useState('')
   const [newLimit, setNewLimit] = useState(localStorage.getItem('zenew_new_limit') || '10')
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
   const [progress, setProgress] = useState<number | null>(null)
   const [updateMsg, setUpdateMsg] = useState('')
   const [ver, setVer] = useState('')
-  const [me, setMe] = useState<Me | null>(null)
-  const [meErr, setMeErr] = useState('')
   const [st, setSt] = useState<LocalSettings>(getSettings())
   const [counts, setCounts] = useState<{ cards: number; logs: number } | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
@@ -71,7 +60,6 @@ export default function SettingsPage() {
   const [streak, setStreak] = useState(0)
   const [learned, setLearned] = useState(0)
   const [mastered, setMastered] = useState(0)
-  const [confirmLogout, setConfirmLogout] = useState(false)
 
   const patch = (p: Partial<LocalSettings>) => {
     const next = saveSettings(p)
@@ -115,12 +103,6 @@ export default function SettingsPage() {
         if (u) setUpdate({ version: u.version, notes: u.body ?? null })
       })
       .catch(() => {})
-    fetchMe()
-      .then((m) => {
-        setMe(m)
-        setMeErr('')
-      })
-      .catch((e) => setMeErr(e instanceof ApiError && e.status === 401 ? '登录已过期，请重新登录' : '账号信息暂时不可用'))
     void loadLocalStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -146,34 +128,18 @@ export default function SettingsPage() {
       }
     })
 
-  const saveServer = () => {
-    const v = server.trim()
-    if (!v) {
-      setServerErr('服务地址不能为空')
-      return
-    }
-    if (!/^https?:\/\/[^\s]+\./i.test(v)) {
-      setServerErr('需要以 http(s):// 开头的完整地址')
-      return
-    }
-    setServer(v)
-    setServerUrl(getServer())
-    setServerErr('')
-    toast.success('服务地址已保存')
-  }
-
   return (
     <div className="page-in">
       <PageHeader title="我的" kicker="PROFILE / SETTINGS" />
 
-      {/* 个人资料 */}
+      {/* 本机概览 */}
       <Card className="fade-up">
         <div className="profile-head" style={{ marginBottom: 0 }}>
-          <Avatar seed={me?.email || '知新'} size="lg" name="账号头像" />
+          <Avatar seed="知新" size="lg" name="本机" />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="profile-name truncate">{me?.email?.split('@')[0] || '知新用户'}</div>
+            <div className="profile-name truncate">知新用户</div>
             <div className="profile-id">
-              <span title="邮箱已脱敏显示">{maskEmail(me?.email)}</span>
+              <span>学习数据全部保存在本机</span>
               <Tag tone={streak > 0 ? 'success' : 'neutral'} icon={<Zap size={11} />}>
                 {streak > 0 ? `连续 ${streak} 天` : '今天还没学'}
               </Tag>
@@ -383,7 +349,7 @@ export default function SettingsPage() {
 
       {/* 数据与账号 */}
       <div className="section-label" style={{ marginTop: 'var(--sp-5)' }}>
-        数据与账号
+        数据与更新
       </div>
       <div className="group">
         <div className="group-row">
@@ -399,50 +365,6 @@ export default function SettingsPage() {
           <Tag tone="success" icon={<ShieldCheck size={11} />} mono>
             {ver || '…'}
           </Tag>
-        </div>
-        <div className="group-row">
-          <div className="group-row-main">
-            <div className="group-row-title">账号</div>
-            <div className="group-row-sub" title="出于隐私保护，邮箱已脱敏">
-              {maskEmail(me?.email)} <span className="text-3">（邮箱已脱敏）</span>
-              {meErr && <span style={{ color: 'var(--danger-ink)' }}> · {meErr}</span>}
-            </div>
-          </div>
-        </div>
-        <div className="group-row">
-          <Server size={17} aria-hidden />
-          <div className="group-row-main">
-            <div className="group-row-title">服务地址</div>
-            <div className="group-row-sub">{serverErr || '生成类请求经此网关，客户端不保存任何密钥'}</div>
-          </div>
-          <input
-            className="input"
-            style={{ width: 200 }}
-            aria-label="服务地址"
-            aria-invalid={serverErr ? true : undefined}
-            value={server}
-            onChange={(e) => {
-              setServerUrl(e.target.value)
-              setServerErr('')
-            }}
-          />
-          <Button size="sm" variant="outline" onClick={saveServer}>
-            保存
-          </Button>
-          {server !== DEFAULT_SERVER && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setServer(DEFAULT_SERVER)
-                setServerUrl(DEFAULT_SERVER)
-                setServerErr('')
-                toast.success('已恢复默认地址')
-              }}
-            >
-              恢复默认
-            </Button>
-          )}
         </div>
         <button className="group-row is-link" onClick={doUpdate} disabled={busyUpdate}>
           <RefreshCw size={17} aria-hidden />
@@ -465,33 +387,10 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <div style={{ marginTop: 'var(--sp-5)' }}>
-        <Button variant="danger" block icon={<LogOut size={15} />} onClick={() => setConfirmLogout(true)}>
-          退出登录
-        </Button>
-      </div>
-
-      <p className="today-hint fade-up">
+      <p className="today-hint fade-up" style={{ marginTop: 'var(--sp-5)' }}>
         <span className="dot" aria-hidden />
         知新 Zenew · 把英语单词变成科学调度的练习系统（学习数据全部保存在本机）
       </p>
-
-      <ConfirmDialog
-        open={confirmLogout}
-        danger
-        title="退出登录？"
-        description="退出后本地学习记录仍会保留，下次登录可继续；云端生成功能需要重新登录。"
-        confirmText="确认退出"
-        loading={busyLogout}
-        onCancel={() => setConfirmLogout(false)}
-        onConfirm={() =>
-          runLogout(async () => {
-            localStorage.removeItem('zenew_token')
-            window.location.hash = '#/login'
-            window.location.reload()
-          })
-        }
-      />
     </div>
   )
 }

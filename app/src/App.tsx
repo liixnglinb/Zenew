@@ -17,7 +17,6 @@ import {
   User,
   Zap,
 } from 'lucide-react'
-import { ApiError, fetchMe, getToken, setToken, type Me } from './api'
 import { isTauri, ensureSchema } from './db'
 import { todayActivity, applySettings, getSettings, loadStreak } from './study'
 import { applyDirection, getLang } from './lib/i18n'
@@ -45,7 +44,6 @@ import {
   useLastRoute,
   useWindowState,
 } from './ui/desktop'
-import Login from './pages/Login'
 import Today from './pages/Today'
 import ReviewSession from './pages/ReviewSession'
 import Stats from './pages/Stats'
@@ -73,7 +71,7 @@ const DRAWER_ITEMS = [
   { to: '/settings', label: '我的与设置', icon: Settings },
 ]
 
-function Shell({ meEmail }: { meEmail: string }) {
+function Shell() {
   const nav = useNavigate()
   const location = useLocation()
   const { resolved, mode, setMode, toggle } = useTheme()
@@ -162,11 +160,10 @@ function Shell({ meEmail }: { meEmail: string }) {
               <div className="appbar-user">
                 <button
                   className="avatar is-md"
-                  style={{ background: 'linear-gradient(140deg, var(--brand), var(--brand-300))' }}
                   aria-label="打开导航菜单"
                   onClick={() => setDrawer(true)}
                 >
-                  {(meEmail[0] || '知').toUpperCase()}
+                  知
                 </button>
                 <span className="pill pill-streak" data-tip={`连续学习 ${streak} 天`}>
                   <Flame size={14} aria-hidden /> {streak} 天
@@ -275,17 +272,12 @@ function Shell({ meEmail }: { meEmail: string }) {
   )
 }
 
-function AuthGate() {
-  const [me, setMe] = useState<Me | null>(null)
+function BootGate() {
   const [ready, setReady] = useState(false)
-  const [offline, setOffline] = useState(false)
 
   useEffect(() => {
     applySettings(getSettings())
     applyDirection(getLang())
-  }, [])
-
-  useEffect(() => {
     ;(async () => {
       if (isTauri()) {
         try {
@@ -294,20 +286,8 @@ function AuthGate() {
           console.error('数据库初始化失败', e)
         }
       }
-      if (getToken()) {
-        try {
-          setMe(await fetchMe())
-          setOffline(false)
-        } catch (e) {
-          if (e instanceof ApiError && e.status === 401) setToken(null)
-          else setOffline(true) // 服务器不可达：允许离线使用本地内容
-        }
-      }
       setReady(true)
     })()
-    const onUnauthorized = () => setMe(null)
-    window.addEventListener('zenew:unauthorized', onUnauthorized)
-    return () => window.removeEventListener('zenew:unauthorized', onUnauthorized)
   }, [])
 
   if (!ready) {
@@ -323,9 +303,7 @@ function AuthGate() {
       </div>
     )
   }
-  if (!me) return <Login onLogin={(m) => setMe({ email: m.email })} />
-  void offline
-  return <Shell meEmail={me.email} />
+  return <Shell />
 }
 
 export default function App() {
@@ -333,7 +311,7 @@ export default function App() {
     <ThemeProvider>
       <ToastProvider>
         <HashRouter>
-          <AuthGate />
+          <BootGate />
         </HashRouter>
       </ToastProvider>
     </ThemeProvider>
