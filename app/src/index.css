@@ -625,7 +625,7 @@ button.pill:hover { box-shadow: var(--sh-2); }
   font-size: var(--fs-sm); font-weight: var(--fw-semibold); line-height: 1; letter-spacing: .01em;
   background-color: var(--n-1); background-image: var(--inner-hi-soft);
   color: var(--ink-1); white-space: nowrap; position: relative; flex-shrink: 0;
-  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease),
+  transition: box-shadow var(--dur-base) var(--ease),
     background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
 }
 .btn:hover:not(:disabled) { box-shadow: var(--sh-2); }

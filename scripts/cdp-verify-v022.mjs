@@ -18,11 +18,17 @@ await new Promise((r) => (ws.onopen = r))
 let id = 0
 const pending = new Map()
 const errors = []
+let cspHits = 0
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data)
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); return }
   if (m.method === 'Runtime.exceptionThrown')
     errors.push(`${m.params.exceptionDetails.text} ${m.params.exceptionDetails.exception?.description || ''}`.slice(0, 180))
+  if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
+    const line = (m.params.args || []).map((a) => a.value ?? a.description ?? '').join(' ').slice(0, 160)
+    errors.push(line)
+    if (/Content Security Policy/.test(line)) cspHits++
+  }
 }
 const send = (method, params = {}) =>
   new Promise((res) => { const mid = ++id; pending.set(mid, res); ws.send(JSON.stringify({ id: mid, method, params })) })
@@ -62,15 +68,16 @@ check('点阵覆盖层已移除（body::before background-image=none）',
   await ev(`getComputedStyle(document.body,'::before').backgroundImage`), 'none')
 // 阴影令牌已归零：计算值是一串全透明阴影（不是字面 none），断言"不含任何不透明色"
 check('卡片无可见投影（阴影项全透明）',
-  await ev(`(()=>{const v=getComputedStyle(document.querySelector('.card')).boxShadow;
+  await ev(`(()=>{const el=document.querySelector('.card');if(!el)return 'no-card-yet';const v=getComputedStyle(el).boxShadow;
     if(v==='none')return 'none';
     return /rgba\\(\\d+, \\d+, \\d+, (0|0\\.0*)\\)/.test(v) && !/rgba\\(\\d+, \\d+, \\d+, 0\\.[1-9]/.test(v) ? 'all-transparent' : v})()`),
-  'all-transparent')
+  (v) => v === 'all-transparent' || v === 'none')
 // Windows 显示缩放会把 1 CSS px 折算成设备像素（150% → 0.667），断言区间而不是字面 1px
 check('卡片 1px 实描边（按 DPI 折算 0.5~1.5px）',
-  await ev(`parseFloat(getComputedStyle(document.querySelector('.card')).borderWidth)`), (v) => v > 0.5 && v < 1.5)
+  await ev(`(()=>{const el=document.querySelector('.card');return el?parseFloat(getComputedStyle(el).borderWidth):-1})()`),
+  (v) => v > 0.5 && v < 1.5)
 check('卡片圆角 8px',
-  await ev(`getComputedStyle(document.querySelector('.card')).borderRadius`), '8px')
+  await ev(`(()=>{const el=document.querySelector('.card');return el?getComputedStyle(el).borderRadius:'no-card-yet'})()`), '8px')
 
 // ---------- 2. 字体 ----------
 check('系统字体优先 Segoe UI Variable',
@@ -129,6 +136,14 @@ check('内置词库可取（status 200）', dict.status, 200)
 check('内置词库条目数 14625', dict.n, 14625)
 check('词库来自本机而非 CDN', /localhost|127\.0\.0\.1/.test(dict.url), true)
 console.log(`    词库加载耗时 ${dict.ms}ms`)
+
+// ---------- 6.5 CSP 收紧后的两条关键回归 ----------
+// IPC：设置页的版本号来自 Tauri getVersion（plugin:app|version），走 http://ipc.localhost
+await go('/settings')
+check('CSP 下 IPC 可用（设置页读到 v0.22.0）',
+  await ev(`(()=>{const t=[...document.querySelectorAll('.tag, .group-row-value')].map(x=>x.textContent.trim()).find(x=>/^v?[0-9]+\\.[0-9]+/.test(x));return t||'none'})()`),
+  (v) => /0\.22\.0/.test(v))
+check('零 CSP 违规', cspHits, 0)
 
 // ---------- 7. 全页面浅/深色零异常 ----------
 const PAGES = ['/today', '/vocab', '/dict', '/stats', '/tasks', '/rank', '/settings']
