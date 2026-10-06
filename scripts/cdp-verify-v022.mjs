@@ -140,9 +140,9 @@ console.log(`    词库加载耗时 ${dict.ms}ms`)
 // ---------- 6.5 CSP 收紧后的两条关键回归 ----------
 // IPC：设置页的版本号来自 Tauri getVersion（plugin:app|version），走 http://ipc.localhost
 await go('/settings')
-check('CSP 下 IPC 可用（设置页读到 v0.22.0）',
+check('CSP 下 IPC 可用（设置页读到本包版本）',
   await ev(`(()=>{const t=[...document.querySelectorAll('.tag, .group-row-value')].map(x=>x.textContent.trim()).find(x=>/^v?[0-9]+\\.[0-9]+/.test(x));return t||'none'})()`),
-  (v) => /0\.22\.0/.test(v))
+  (v) => /^v?[0-9]+.[0-9]+.[0-9]+$/.test(v))
 check('零 CSP 违规', cspHits, 0)
 
 // ---------- 7. 全页面浅/深色零异常 ----------
