@@ -1,0 +1,623 @@
+/* ============================================================
+   Zenew UI Refresh · 0.23
+   目标：不改业务逻辑，只提升桌面端信息层级、空间节奏、交互反馈与窄窗体验。
+   ============================================================ */
+
+:root {
+  --container: 1180px;
+  --gutter: 28px;
+  --shell-pad: 14px;
+  --side-w: 232px;
+  --side-w-collapsed: 72px;
+  --r-card: 16px;
+  --r-panel: 16px;
+  --r-row: 12px;
+  --r-btn: 10px;
+  --r-field: 10px;
+  --sh-1: 0 1px 2px rgba(15, 23, 42, .035), 0 2px 8px rgba(15, 23, 42, .035);
+  --sh-2: 0 8px 22px -8px rgba(15, 23, 42, .16), 0 3px 10px rgba(15, 23, 42, .05);
+  --sh-3: 0 24px 54px -16px rgba(15, 23, 42, .22), 0 8px 18px rgba(15, 23, 42, .08);
+}
+
+[data-theme="dark"] {
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04);
+  --sh-2: 0 12px 28px -8px rgba(0, 0, 0, .52), inset 0 1px 0 rgba(255, 255, 255, .05);
+  --sh-3: 0 26px 58px -16px rgba(0, 0, 0, .78), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    radial-gradient(1000px 520px at 20% -10%, rgba(51, 102, 255, .07), transparent 62%),
+    radial-gradient(860px 460px at 100% 0%, rgba(16, 185, 129, .035), transparent 58%),
+    var(--sky-1);
+}
+
+[data-theme="dark"] body {
+  background:
+    radial-gradient(1000px 520px at 15% -10%, rgba(77, 125, 255, .09), transparent 62%),
+    radial-gradient(860px 460px at 100% 0%, rgba(16, 185, 129, .025), transparent 58%),
+    var(--sky-1);
+}
+
+/* ---------- 顶部窗口层 ---------- */
+.titlebar {
+  background: color-mix(in srgb, var(--sky-1) 86%, transparent);
+  backdrop-filter: blur(18px) saturate(1.08);
+  box-shadow: inset 0 -1px 0 var(--hairline);
+}
+.titlebar-brand {
+  font-size: var(--fs-sm);
+  letter-spacing: -.01em;
+}
+.titlebar-tag {
+  border: 1px solid var(--brand-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
+}
+
+/* ---------- 外壳：侧栏 + 工作区 ---------- */
+.shell {
+  gap: 14px;
+  padding: 0 var(--shell-pad) var(--shell-pad);
+}
+.shell-main {
+  min-width: 0;
+}
+.appbar {
+  min-height: 62px;
+  margin: 6px 0 2px;
+  padding: 8px 12px 10px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card-glass) 92%, transparent);
+  backdrop-filter: blur(16px) saturate(1.06);
+  box-shadow: var(--sh-1);
+}
+.appbar-user {
+  gap: 9px;
+}
+.appbar-icons {
+  padding: 3px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--n-1) 82%, transparent);
+  border: 1px solid var(--hairline);
+}
+.appbar-sep {
+  height: 20px;
+  margin: 0 3px;
+}
+.icon-btn {
+  border-radius: 9px;
+}
+.icon-btn:hover {
+  background: var(--card);
+  border-color: var(--hairline);
+  box-shadow: var(--sh-1);
+}
+.avatar.is-md {
+  width: 38px;
+  height: 38px;
+}
+.pill {
+  height: 34px;
+  padding-inline: 12px;
+  box-shadow: none;
+}
+
+.appbody {
+  scrollbar-gutter: stable both-edges;
+}
+.appinner {
+  max-width: var(--container);
+  padding-top: 10px;
+  padding-bottom: 44px;
+}
+
+/* ---------- 左侧导航 ---------- */
+.sidenav {
+  padding: 12px 10px 10px;
+  border-color: var(--hairline);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-strong) 96%, transparent), color-mix(in srgb, var(--card) 92%, transparent));
+  backdrop-filter: blur(18px) saturate(1.04);
+  box-shadow: var(--sh-1);
+}
+.sidenav-brand {
+  padding: 4px 6px 12px;
+  margin-bottom: 4px;
+}
+.sidenav-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+}
+.sidenav-brand-text b {
+  font-size: 15px;
+}
+.sidenav-list {
+  gap: 4px;
+  padding: 0 2px;
+}
+.sidenav-item {
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--ink-2);
+}
+.sidenav-item:hover {
+  background: var(--n-1);
+  color: var(--ink-1);
+  border-color: var(--hairline);
+}
+.sidenav-item.is-active {
+  background: linear-gradient(120deg, var(--brand-soft), color-mix(in srgb, var(--brand-soft) 58%, var(--card)));
+  border-color: var(--brand-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+.sidenav-item.is-active::before {
+  left: 4px;
+  width: 3px;
+  height: 20px;
+}
+.sidenav-key {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+}
+.sidenav-foot {
+  margin-top: 8px;
+  padding: 10px 2px 0;
+}
+.sidenav-stat {
+  border-radius: 10px;
+  padding: 7px 9px;
+}
+.sidenav-stat:hover {
+  background: var(--n-1);
+}
+.sidenav-toggle {
+  height: 36px;
+  border-radius: 10px;
+}
+
+/* ---------- 页面标题：更像工作台而非文档标题 ---------- */
+.page-header {
+  min-height: 52px;
+  margin-bottom: 8px;
+}
+.page-header-title {
+  font-size: clamp(1.45rem, 2vw, 1.8rem);
+  letter-spacing: -.035em;
+}
+.page-sub {
+  max-width: 760px;
+  margin-top: 6px;
+  margin-bottom: 20px;
+}
+.kicker {
+  margin-bottom: 7px;
+  color: var(--brand);
+}
+.section-label {
+  margin-bottom: 12px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .11em;
+}
+
+/* ---------- 基础表面：减少“每个东西都像一张卡”的感觉 ---------- */
+.card,
+.group,
+.plan-card,
+.exam-strip,
+.promo-card,
+.hm-metric,
+.hm-words,
+.hm-side-card,
+.metric,
+.stat-card {
+  border-color: var(--hairline);
+}
+.card {
+  padding: 20px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, #fff 2%), var(--card));
+  box-shadow: var(--sh-1);
+}
+.card:hover {
+  box-shadow: var(--sh-2);
+}
+.card-2 {
+  background: color-mix(in srgb, var(--n-1) 90%, var(--card));
+}
+.group {
+  box-shadow: var(--sh-1);
+}
+.group-row {
+  min-height: 58px;
+  padding: 13px 16px;
+}
+.group-row.is-link:hover {
+  background: color-mix(in srgb, var(--brand-soft) 60%, var(--n-1));
+}
+.row {
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+.row:hover {
+  transform: translateY(-1px);
+}
+
+/* ---------- 按钮 / 表单 ---------- */
+.btn {
+  height: 38px;
+  min-height: 38px;
+  border-radius: 10px;
+  padding-inline: 14px;
+  box-shadow: none;
+}
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.btn-primary,
+.btn-mint {
+  box-shadow: 0 6px 18px -8px rgba(51, 102, 255, .5), inset 0 1px 0 rgba(255, 255, 255, .2);
+}
+.btn-outline,
+.btn-secondary {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+}
+.btn-lg {
+  height: 44px;
+  min-height: 44px;
+  border-radius: 11px;
+}
+.btn-sm {
+  height: 34px;
+  min-height: 34px;
+}
+.input,
+.textarea,
+.select {
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 1px 2px rgba(15, 23, 42, .03);
+}
+.input:focus,
+.textarea:focus,
+.select:focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 14%, transparent), 0 2px 8px rgba(15, 23, 42, .06);
+}
+
+/* ---------- 标签页 / 分段 ---------- */
+.cat-tabs {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.cat-tab {
+  padding: 8px 14px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.cat-tab.is-active {
+  box-shadow: 0 5px 16px -8px rgba(51, 102, 255, .55);
+}
+.segmented {
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--n-2);
+  border-color: var(--hairline);
+}
+.segmented button {
+  min-height: 30px;
+  border-radius: 8px;
+}
+.segmented button[aria-pressed="true"] {
+  box-shadow: var(--sh-1);
+}
+
+/* ---------- 首页驾驶舱 ---------- */
+.hm-stats {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.hm-metric {
+  min-height: 112px;
+  padding: 18px 18px 16px;
+  border-radius: 15px;
+  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 92%, var(--n-1)));
+}
+.hm-metric:hover {
+  transform: translateY(-2px);
+}
+.hm-metric-num {
+  font-size: clamp(1.7rem, 2.2vw, 2.15rem);
+}
+.hm-metric-label {
+  margin-top: 7px;
+  letter-spacing: .06em;
+}
+.hm-hero {
+  min-height: 172px;
+  padding: 24px 26px;
+  border-radius: 18px;
+  background:
+    radial-gradient(480px 240px at 0% 0%, color-mix(in srgb, var(--brand-soft) 90%, transparent), transparent 78%),
+    linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 92%, var(--n-1)));
+}
+.hm-hero-score {
+  min-width: 190px;
+}
+.hm-hero-num {
+  font-size: clamp(3rem, 4vw, 4.15rem);
+  letter-spacing: -.065em;
+}
+.hm-hero-label {
+  margin-top: 9px;
+}
+.hm-hero .plan-buttons {
+  gap: 10px;
+}
+.btn-plan {
+  min-height: 62px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--brand-hi), var(--brand));
+  box-shadow: 0 10px 24px -14px rgba(51, 102, 255, .75), inset 0 1px 0 rgba(255, 255, 255, .2);
+}
+.btn-plan.is-ghost {
+  background: linear-gradient(180deg, var(--mint-hi), var(--mint));
+  box-shadow: 0 10px 24px -14px rgba(16, 185, 129, .68), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.btn-plan:hover {
+  transform: translateY(-2px);
+}
+
+.plan-card {
+  border-radius: 16px;
+  box-shadow: var(--sh-1);
+  padding: 18px;
+}
+.plan-card:hover {
+  box-shadow: var(--sh-2);
+}
+.plan-name {
+  font-size: clamp(1.15rem, 1.6vw, 1.35rem);
+}
+.plan-tab {
+  padding-top: 2px;
+}
+.exam-strip {
+  border-radius: 14px;
+  min-height: 74px;
+}
+.exam-strip:hover,
+.promo-card:hover {
+  transform: translateY(-1px);
+}
+.promo-row {
+  gap: 12px;
+}
+.promo-card {
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  min-height: 82px;
+}
+.promo-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+.hm-side-card {
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 94%, var(--n-1)));
+}
+.hm-words {
+  padding: 16px;
+}
+.hm-word {
+  flex-basis: 164px;
+  min-height: 92px;
+  border-radius: 12px;
+}
+
+/* ---------- 统计 / 任务 / 排行榜 ---------- */
+.metric-row {
+  gap: 12px;
+}
+.metric {
+  min-height: 104px;
+  padding: 16px 16px;
+  border-radius: 15px;
+  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 93%, var(--n-1)));
+}
+.metric b {
+  font-size: clamp(1.65rem, 2vw, 2rem);
+}
+.task-row {
+  border-radius: 12px;
+  padding: 13px 14px;
+  background: var(--n-1);
+}
+.task-row:hover {
+  box-shadow: var(--sh-1);
+}
+.rank-row {
+  border-radius: 12px;
+}
+
+/* ---------- 我的 / 设置 ---------- */
+.stat-card {
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--n-1), color-mix(in srgb, var(--n-1) 84%, var(--card)));
+}
+.profile-name {
+  font-size: 1.3rem;
+}
+
+/* ---------- 弹窗 / 抽屉 / Toast ---------- */
+.modal {
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--sh-3);
+  backdrop-filter: blur(16px);
+}
+.modal-mask,
+.drawer-mask {
+  backdrop-filter: blur(11px) saturate(1.06);
+}
+.drawer {
+  width: min(360px, 92vw);
+  padding: 20px 16px;
+  box-shadow: var(--sh-3);
+}
+.toast {
+  border-radius: 12px;
+}
+
+/* ---------- 浮层菜单 ---------- */
+.plan-menu,
+.ctx-menu {
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-3);
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+}
+
+/* ---------- 深色排行榜：强化玻璃层级 ---------- */
+.dark-page {
+  background:
+    radial-gradient(700px 340px at 50% -6%, rgba(110, 155, 255, .24), transparent 62%),
+    linear-gradient(180deg, #0A1428 0%, #0F1D38 52%, #142748 100%);
+}
+.dark-page .card,
+.dark-page .metric {
+  border-radius: 15px;
+}
+
+/* ---------- 响应式：窄窗时优先保证内容，而不是让布局挤坏 ---------- */
+@media (max-width: 1100px) {
+  :root {
+    --gutter: 20px;
+  }
+  .appbar {
+    margin-top: 4px;
+  }
+  .hm-hero {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .shell {
+    gap: 10px;
+  }
+  .sidenav {
+    border-radius: 14px;
+  }
+  .appinner {
+    padding-top: 6px;
+  }
+  .hm-hero {
+    gap: 16px;
+  }
+  .hm-hero-score {
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr) !important;
+    padding-inline: 8px;
+  }
+  .sidenav {
+    display: none;
+  }
+  .appbar {
+    min-height: 58px;
+    padding-inline: 10px;
+    border-radius: 12px;
+  }
+  .appbar-icons {
+    gap: 2px;
+  }
+  .pill {
+    height: 32px;
+    padding-inline: 10px;
+  }
+  .appinner {
+    padding-inline: 12px;
+  }
+  .page-header-title {
+    font-size: 1.35rem;
+  }
+  .hm-hero {
+    padding: 18px;
+  }
+  .hm-hero .plan-buttons,
+  .plan-buttons {
+    grid-template-columns: 1fr;
+  }
+  .hm-hero-score {
+    min-width: 0;
+    width: 100%;
+  }
+  .promo-row {
+    grid-template-columns: 1fr;
+  }
+  .metric-row,
+  .hm-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  :root {
+    --gutter: 14px;
+  }
+  .appbar-user .pill {
+    display: none;
+  }
+  .appinner {
+    padding-inline: 8px;
+  }
+  .page-header {
+    align-items: flex-start;
+  }
+  .card,
+  .plan-card,
+  .hm-words {
+    padding: 15px;
+  }
+  .hm-stats,
+  .metric-row,
+  .stat-trio {
+    grid-template-columns: 1fr;
+  }
+  .hm-metric,
+  .metric {
+    min-height: 92px;
+  }
+  .hm-hero-num {
+    font-size: 3.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .page-in,
+  .fade-up,
+  .sidenav,
+  .btn,
+  .card,
+  .row,
+  .promo-card,
+  .hm-metric,
+  .hm-word,
+  .btn-plan {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter'
 import './index.css'
 import './desktop.css'
+import './ui-overhaul.css'
 import App from './App.tsx'
 
 // 全局兜底（模块二）：渲染崩溃由 App.tsx 的 ErrorBoundary 按路由接住；
