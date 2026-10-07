@@ -346,6 +346,7 @@ export default function Dict() {
             rows={shown}
             rowKey={(r) => r.w}
             columns={columns}
+            getRowProps={(r) => ({ 'data-active': r.w === activeWord ? 'true' : undefined })}
           />
           <span className="sr-only" aria-live="polite">
             {activeWord ? `当前选中 ${activeWord}，按 Enter 收藏进生词本` : ''}

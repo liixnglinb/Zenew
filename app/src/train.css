@@ -179,13 +179,13 @@
   align-items: center;
   gap: var(--sp-4);
   text-align: left;
-  padding: var(--sp-4);
-  border: none;
-  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-1), inset 0 0 0 1px var(--glass-border);
+  box-shadow: var(--sh-1);
   cursor: pointer;
-  transition: transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base);
+  transition: all var(--dur-fast) var(--ease-out);
 }
 [data-theme='dark'] .train-dock-card {
   box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
@@ -202,7 +202,8 @@
   pointer-events: none;
 }
 .train-dock-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
+  border-color: var(--brand-line);
   box-shadow: var(--sh-2);
 }
 .train-dock-card:focus-visible {
@@ -211,15 +212,15 @@
 }
 .train-dock-icon {
   flex-shrink: 0;
-  width: 52px;
-  height: 52px;
+  width: 50px;
+  height: 50px;
   border-radius: var(--r-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  background: linear-gradient(140deg, var(--brand), var(--brand-hi));
-  box-shadow: var(--sh-1), var(--sh-inset);
+  background: linear-gradient(135deg, var(--brand-hi) 0%, var(--brand) 100%);
+  box-shadow: var(--sh-brand);
 }
 .train-dock-card.is-alt .train-dock-icon {
   background: linear-gradient(140deg, var(--mint), var(--mint-hi));
@@ -269,8 +270,8 @@
   margin-top: var(--sp-5);
 }
 .train-play {
-  width: 92px;
-  height: 92px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   border: none;
   display: inline-flex;
@@ -282,12 +283,17 @@
   font-size: var(--fs-micro);
   font-weight: var(--fw-black);
   letter-spacing: .06em;
-  background: linear-gradient(140deg, var(--brand), var(--brand-hi));
-  box-shadow: 0 12px 30px -10px rgba(42, 99, 240, .6), var(--sh-inset);
-  transition: transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base);
+  background: linear-gradient(135deg, var(--brand-hi), var(--brand));
+  box-shadow: 0 8px 24px -6px rgba(51, 102, 255, 0.5);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
 }
 .train-play:hover {
-  transform: translateY(-2px) scale(1.02);
+  transform: scale(1.05);
+  box-shadow: 0 12px 30px -4px rgba(51, 102, 255, 0.6);
+}
+.train-play:active {
+  transform: scale(0.96);
 }
 .train-play.is-playing {
   background: linear-gradient(140deg, var(--mint), var(--mint-hi));
@@ -366,9 +372,10 @@
 .train-rush-card {
   text-align: center;
   padding: var(--sp-6) var(--sp-5) var(--sp-5);
-  border-radius: var(--r-xl);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-2), inset 0 0 0 1px var(--glass-border);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-2);
 }
 [data-theme='dark'] .train-rush-card {
   box-shadow: var(--sh-2), inset 0 0 0 1px var(--line);
@@ -498,31 +505,31 @@
 /* ---------------- 拼写 / 听写：输入框与逐字着色 ---------------- */
 .train-spell {
   margin-top: var(--sp-5);
-  padding: var(--sp-4);
-  border-radius: var(--r-lg);
+  padding: var(--sp-5);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-2), inset 0 0 0 1px var(--glass-border);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-2);
 }
 [data-theme='dark'] .train-spell {
   box-shadow: var(--sh-2), inset 0 0 0 1px var(--line);
 }
 .train-input {
   width: 100%;
-  min-height: 62px;
+  min-height: 58px;
   padding: var(--sp-3) var(--sp-4);
-  border: none;
+  border: 1px solid var(--hairline);
   border-radius: var(--r-md);
   background: var(--n-1);
   color: var(--ink-1);
   font-family: var(--mono);
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: var(--fw-bold);
   letter-spacing: .06em;
   text-align: center;
   outline: none;
   caret-color: var(--brand);
-  box-shadow: inset 0 0 0 2px transparent;
-  transition: box-shadow var(--dur-fast), background var(--dur-fast);
+  transition: all var(--dur-fast) var(--ease-out);
 }
 .train-input::placeholder {
   font-size: var(--fs-base);
@@ -531,7 +538,8 @@
 }
 .train-input:focus {
   background: var(--card);
-  box-shadow: inset 0 0 0 2px var(--brand);
+  border-color: var(--brand);
+  box-shadow: var(--focus-ring-shadow);
 }
 .train-input.is-locked {
   background: var(--n-1);

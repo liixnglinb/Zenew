@@ -27,6 +27,7 @@ export interface DataTableProps<T> {
   /** 行点击（可选，键盘可达） */
   onRowClick?: (row: T) => void
   defaultSort?: { key: string; dir: 'asc' | 'desc' }
+  getRowProps?: (row: T, index: number) => Record<string, unknown>
 }
 
 export function DataTable<T extends Record<string, unknown>>({
@@ -38,6 +39,7 @@ export function DataTable<T extends Record<string, unknown>>({
   empty,
   onRowClick,
   defaultSort,
+  getRowProps,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(defaultSort ?? null)
 
@@ -124,27 +126,31 @@ export function DataTable<T extends Record<string, unknown>>({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row, i) => (
-            <tr
-              key={rowKey(row, i)}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-              tabIndex={onRowClick ? 0 : undefined}
-              onKeyDown={
-                onRowClick
-                  ? (e) => {
-                      if (e.key === 'Enter') onRowClick(row)
-                    }
-                  : undefined
-              }
-              style={onRowClick ? { cursor: 'pointer' } : undefined}
-            >
-              {columns.map((c) => (
-                <td key={c.key} className={c.align === 'end' ? 'is-num' : undefined}>
-                  {c.render ? c.render(row, i) : String(row[c.key] ?? '')}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {sorted.map((row, i) => {
+            const extra = getRowProps ? getRowProps(row, i) : undefined
+            return (
+              <tr
+                key={rowKey(row, i)}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (e) => {
+                        if (e.key === 'Enter') onRowClick(row)
+                      }
+                    : undefined
+                }
+                style={onRowClick ? { cursor: 'pointer' } : undefined}
+                {...extra}
+              >
+                {columns.map((c) => (
+                  <td key={c.key} className={c.align === 'end' ? 'is-num' : undefined}>
+                    {c.render ? c.render(row, i) : String(row[c.key] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

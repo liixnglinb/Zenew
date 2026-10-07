@@ -1,29 +1,25 @@
 /* ============================================================
- * polish.css — 第三波质感升级（由 ReviewSession / Rank / Tasks /
- * WordDetailPanel / Train 引入；在 index.css 之后加载，同特异性时后者胜）
- *
- * 内容：
- *   A. 形义徽标层（emblem.ts 的纹样平铺 / 光晕 / 字形层级）
- *   B. 排行榜主题化（去掉整页深色，星空只留横幅光晕；榜单/领奖台走令牌）
- *   C. 可解释记忆面板（为什么现在复习）
- *   D. 学习完成页庆祝卡
- *   E. 金色小块统一模板（哑光渐变底 + 发丝描边 + 顶部内高光）
- *
- * 全部使用 index.css v6 令牌（--card、--n-x、--ink-x、--brand、--amber 系列），浅深主题都成立。
+ * polish.css — 质感与高阶交互层（ReviewSession / Rank / Tasks / WordDetailPanel / Train）
+ * ------------------------------------------------------------
+ * 升级目标：
+ *   A. 形义徽标层（emblem 几何纹样平铺 / 光晕 / 字形层级）
+ *   B. 排行榜（星空横幅光晕、现代领奖台金银铜阶梯、榜单高保真行）
+ *   C. 可解释记忆面板（FSRS 4.5 可提取性白话解释）
+ *   D. 学习完成页庆祝卡（环形徽标、多维数据统计卡、连击提示）
+ *   E. 荣誉金色统一质感（哑光渐变底 + 发丝描边 + 顶部内高光）
  * ============================================================ */
 
 /* ---------- A. 形义徽标层 ---------- */
-/* index.css 的 .media-card 自带点阵纹理，让位给 emblem 纹样层 */
 .media-card--emblem::before {
   content: none;
 }
 .emblem-pattern {
   position: absolute;
-  inset: -12%; /* 留出旋转余量，避免转出露边 */
+  inset: -12%;
   z-index: 0;
   pointer-events: none;
   background-repeat: repeat;
-  opacity: 0.55;
+  opacity: 0.5;
 }
 .emblem-halo {
   position: absolute;
@@ -31,33 +27,33 @@
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 0;
-  width: 58%;
-  max-width: 240px;
+  width: 60%;
+  max-width: 250px;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 68%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 70%);
 }
-/* 词条详情的小图卡：字形与角标原是静态定位，会被绝对定位的纹样层盖住，提到其上 */
 .wl-visual-glyph,
 .wl-visual-caption {
   position: relative;
+  z-index: 1;
 }
 
 /* ---------- B. 排行榜主题化 ---------- */
-/* 赛季横幅：星空/季赛氛围只保留为横幅内的渐变光晕（浅深主题都用令牌混色） */
 .rk-hero {
   position: relative;
   overflow: hidden;
   margin-top: var(--sp-2);
-  min-height: 120px;
-  border-radius: var(--r-lg);
-  padding: var(--sp-4) var(--sp-5);
+  min-height: 124px;
+  border-radius: var(--r-card);
+  padding: var(--sp-5) var(--sp-6);
   display: flex;
   align-items: center;
   gap: var(--sp-4);
   background: var(--card);
-  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-2);
 }
 .rk-hero::before {
   content: '';
@@ -65,9 +61,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(420px 170px at 16% 0%, color-mix(in srgb, var(--brand) 24%, transparent) 0%, transparent 70%),
-    radial-gradient(360px 150px at 88% 115%, color-mix(in srgb, var(--amber) 22%, transparent) 0%, transparent 72%),
-    radial-gradient(220px 130px at 60% -35%, color-mix(in srgb, var(--mint) 18%, transparent) 0%, transparent 75%);
+    radial-gradient(460px 180px at 15% 0%, color-mix(in srgb, var(--brand) 20%, transparent) 0%, transparent 72%),
+    radial-gradient(380px 160px at 85% 100%, color-mix(in srgb, var(--amber) 18%, transparent) 0%, transparent 72%),
+    radial-gradient(240px 140px at 60% -20%, color-mix(in srgb, var(--mint) 14%, transparent) 0%, transparent 75%);
 }
 .rk-hero > * {
   position: relative;
@@ -78,13 +74,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .rk-hero-line {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: var(--fs-sm);
+  gap: 8px;
+  font-size: var(--fs-md);
   font-weight: var(--fw-bold);
   color: var(--ink-1);
 }
@@ -101,62 +97,174 @@
 }
 .rk-hero-count {
   font-family: var(--mono);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-xl);
   font-weight: var(--fw-black);
   color: var(--amber);
   letter-spacing: 0.02em;
 }
 .rk-hero-sub {
   font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
   color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
 }
-/* 榜单行 / 领奖台 / 名次：全部改用主题令牌（覆盖 index.css 里为整页深色写的白系硬编码） */
+
+/* 榜单行与领奖台 */
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
 .rank-row {
-  background: var(--n-1);
-  box-shadow: inset 0 0 0 1px var(--line);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 10px var(--sp-4);
+  border-radius: var(--r-row);
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-1);
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.rank-row:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--sh-2);
 }
 .rank-row.is-me {
-  background: linear-gradient(120deg, color-mix(in srgb, var(--brand) 14%, var(--n-1)), var(--n-1));
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 55%, transparent);
+  background: linear-gradient(120deg, var(--brand-soft), var(--card));
+  border-color: var(--brand-line);
+  box-shadow: var(--sh-2), 0 0 0 1px var(--brand-line);
 }
 .rank-no {
+  width: 32px;
+  flex-shrink: 0;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-black);
   color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
 .rank-row.is-me .rank-no {
   color: var(--brand);
 }
+.rank-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .rank-name {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
   color: var(--ink-1);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.rank-score {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-black);
+  color: var(--amber-ink);
+  font-variant-numeric: tabular-nums;
+}
+.rank-me-tag {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-bold);
+  background: var(--brand);
+  color: #fff;
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
 }
 .rank-book {
+  font-size: var(--fs-micro);
   color: var(--ink-3);
 }
-.podium-name {
-  color: var(--ink-1);
+
+/* 领奖台设计 */
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+  align-items: end;
+  margin: var(--sp-6) 0 var(--sp-5);
 }
-.podium-score {
-  color: var(--ink-3);
+.podium-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  transition: transform var(--dur-base) var(--ease-spring);
 }
+.podium-col:hover {
+  transform: translateY(-3px);
+}
+.podium-col.is-first { order: 2; }
+.podium-col:nth-child(1) { order: 1; }
+.podium-col:nth-child(3) { order: 3; }
 .podium-base {
-  background: linear-gradient(180deg, var(--n-2), var(--n-1));
-  box-shadow: inset 0 0 0 1px var(--line);
+  width: 100%;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: var(--sp-3) 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-black);
+  background: var(--n-2);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-1);
   color: var(--ink-2);
 }
-/* 页脚说明：替代原 .dark-note 的白系硬编码 */
+.podium-col.is-first .podium-base {
+  height: 104px;
+  background: linear-gradient(180deg, var(--amber-hi) 0%, var(--amber) 100%);
+  color: #5A3300;
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 16px -2px rgba(245, 158, 11, 0.4);
+}
+.podium-base.is-second {
+  height: 80px;
+  background: linear-gradient(180deg, var(--n-1), var(--n-2));
+}
+.podium-base.is-third {
+  height: 64px;
+  background: linear-gradient(180deg, var(--n-1), var(--n-2));
+}
+.podium-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--ink-1);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.podium-score {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
 .rank-note {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   margin-top: var(--sp-4);
-  padding: 0 var(--sp-4);
+  padding: 0 var(--sp-2);
   font-size: var(--fs-xs);
   color: var(--ink-3);
+  line-height: var(--lh-base);
 }
 .rank-note svg {
   flex-shrink: 0;
   margin-top: 2px;
 }
-/* 段位锁星：锁已由 lucide <Lock> 渲染，停用 index.css 的 emoji 角标 */
 .star.is-locked::after {
   content: none;
 }
@@ -166,16 +274,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px 10px;
-  padding: 10px 14px;
+  gap: 6px 12px;
+  padding: 11px 16px;
   border-radius: var(--r-md);
   background: var(--brand-soft);
-  box-shadow: inset 0 0 0 1px var(--brand-line);
+  border: 1px solid var(--brand-line);
   font-size: var(--fs-xs);
   color: var(--brand-ink);
+  box-shadow: var(--sh-1);
 }
 .why-row > svg {
   flex-shrink: 0;
+  color: var(--brand);
 }
 .why-title {
   font-weight: var(--fw-bold);
@@ -188,10 +298,9 @@
   flex-basis: 100%;
   color: var(--ink-2);
 }
-/* 首学（数据不足）态：中性底色，不渲染假数据 */
 .why-row--first {
-  background: var(--n-2);
-  box-shadow: inset 0 0 0 1px var(--line);
+  background: var(--n-1);
+  border-color: var(--hairline);
   color: var(--ink-2);
 }
 
@@ -200,21 +309,28 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 76px;
-  height: 76px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
-  background: linear-gradient(150deg, var(--amber-soft), color-mix(in srgb, var(--amber-soft) 40%, var(--card)));
-  box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, var(--amber-soft), color-mix(in srgb, var(--amber-soft) 40%, var(--card)));
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 16px -2px rgba(245, 158, 11, 0.25);
   color: var(--amber);
 }
 .done-hero--empty {
   background: var(--n-2);
   color: var(--ink-3);
+  border-color: var(--hairline);
+  box-shadow: none;
 }
 .done-card {
-  margin-top: 22px;
-  padding: var(--sp-5);
+  margin-top: 24px;
+  padding: var(--sp-6);
   text-align: left;
+  border-radius: var(--r-card);
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-2);
 }
 .done-stats {
   display: flex;
@@ -224,29 +340,31 @@
   text-align: center;
 }
 .done-stat {
-  min-width: 64px;
+  min-width: 72px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .done-stat b {
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-3xl);
   font-weight: var(--fw-black);
   color: var(--ink-1);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1;
 }
 .done-stat span {
   font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
   color: var(--ink-3);
+  text-transform: uppercase;
 }
 .done-extra {
-  margin-top: var(--sp-4);
-  padding-top: var(--sp-3);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
   border-top: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .done-extra-row {
   display: flex;
@@ -263,16 +381,15 @@
   color: var(--coral);
 }
 
-/* ---------- E. 金色小块统一模板：哑光渐变底 + 发丝描边 + 顶部内高光 ---------- */
-/* 文字固定深棕（金底在浅深主题下都是浅金，深棕对比成立） */
+/* ---------- E. 金色小块统一模板 ---------- */
 .task-coin,
 .star.is-on,
 .podium-col.is-first .podium-base,
 .polish-gold {
   background: linear-gradient(165deg, var(--amber-hi) 0%, var(--amber) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--amber-ink) 24%, transparent), /* 发丝描边 */
-    inset 0 1px 0 rgba(255, 255, 255, 0.5), /* 顶部内高光 */
-    0 2px 8px -3px color-mix(in srgb, var(--amber) 55%, transparent); /* 落影 */
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 8px -2px rgba(245, 158, 11, 0.4);
   color: #5a3300;
 }

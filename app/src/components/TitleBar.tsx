@@ -8,9 +8,10 @@ import UpdatePill from './UpdatePill'
 export default function TitleBar() {
   const [fs, setFs] = useState(false)
   const [maximized, setMaximized] = useState(false)
+  const tauriActive = isTauri()
 
   useEffect(() => {
-    if (!isTauri()) return
+    if (!tauriActive) return
     const win = getCurrentWindow()
     let un: (() => void) | undefined
     let cancelled = false
@@ -42,16 +43,17 @@ export default function TitleBar() {
       cancelled = true
       un?.()
     }
-  }, [])
-
-  if (!isTauri()) return <div style={{ height: 44 }} />
+  }, [tauriActive])
 
   const btn = 'titlebar-btn'
   return (
     <header
       data-tauri-drag-region
       className={`titlebar${fs ? ' titlebar-hidden' : ''}`}
-      onDoubleClick={() => getCurrentWindow().toggleMaximize().catch(() => {})}
+      onDoubleClick={() => {
+        if (tauriActive) getCurrentWindow().toggleMaximize().catch(() => {})
+        else setMaximized((v) => !v)
+      }}
     >
       <div className="titlebar-brand" data-tauri-drag-region>
         知新
@@ -59,18 +61,38 @@ export default function TitleBar() {
       </div>
       <UpdatePill />
       <div className="titlebar-spacer" data-tauri-drag-region />
-      <button className={btn} title="最小化" aria-label="最小化" onClick={(e) => { e.stopPropagation(); getCurrentWindow().minimize().catch(() => {}) }}>
+      <button
+        className={btn}
+        title="最小化"
+        aria-label="最小化"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (tauriActive) getCurrentWindow().minimize().catch(() => {})
+        }}
+      >
         <Minus size={13} strokeWidth={1.6} />
       </button>
       <button
         className={btn}
         title={maximized ? '还原' : '最大化'}
         aria-label={maximized ? '还原' : '最大化'}
-        onClick={(e) => { e.stopPropagation(); getCurrentWindow().toggleMaximize().catch(() => {}) }}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (tauriActive) getCurrentWindow().toggleMaximize().catch(() => {})
+          else setMaximized((v) => !v)
+        }}
       >
         {maximized ? <Copy size={11} strokeWidth={1.6} /> : <Square size={11} strokeWidth={1.6} />}
       </button>
-      <button className={`${btn} titlebar-close`} title="关闭到托盘（右下角图标可恢复）" aria-label="关闭" onClick={(e) => { e.stopPropagation(); getCurrentWindow().hide().catch(() => {}) }}>
+      <button
+        className={`${btn} titlebar-close`}
+        title="关闭到托盘（右下角图标可恢复）"
+        aria-label="关闭"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (tauriActive) getCurrentWindow().hide().catch(() => {})
+        }}
+      >
         <X size={13} strokeWidth={1.6} />
       </button>
     </header>

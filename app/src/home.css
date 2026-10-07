@@ -1,13 +1,11 @@
 /* ============================================================
    首页「今日驾驶舱」（Today.tsx 专用，全部 hm-* 作用域）
    ------------------------------------------------------------
-   结构：.hm-cockpit = grid-2 is-aside 上的首页两栏层（≥1180px 两栏）
-         左栏 .hm-main：今日待复习大数字 + 新学/复习双按钮
-                       + 断点续学 + 学习计划卡 + 学习提醒
-         右栏 .hm-side：五档掌握迷你堆叠条 + 连续天数小卡
-                       + 最近学习的词（2×2，4 张）+ 生词本一行入口
-   只依赖 index.css 的设计令牌（--card / --sh-* / --r-* / --fs-* 等），
-   不覆盖任何既有类名，与质感层互不干扰。
+   视觉升级：
+   - 现代主义大留白与高保真信息层次（主行动区 + 状态区）
+   - 今日行动英雄卡：大字号醒目数字 + 强交互感新学/复习双行动按钮
+   - 学习计划卡：高精度环形进度图（Ring Chart）+ 质感书封 + 组数估算标签
+   - 状态副卡：5档掌握堆叠条 + 连续学习天数火焰卡 + 2×2 最近学习词卡
    ============================================================ */
 .hm-home {
   margin-bottom: var(--sp-4);
@@ -18,38 +16,43 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
 }
 
 .hm-metric {
   padding: var(--sp-4) var(--sp-5);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-1);
+  transition: all var(--dur-fast) var(--ease-out);
 }
-[data-theme="dark"] .hm-metric {
-  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+.hm-metric:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--sh-2);
 }
 
 .hm-metric-num {
   display: block;
   font-size: var(--fs-3xl);
   font-weight: var(--fw-black);
-  line-height: 1.05;
-  letter-spacing: -.045em;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
   color: var(--ink-1);
   font-variant-numeric: tabular-nums;
 }
 
 .hm-metric-label {
   display: block;
-  margin-top: var(--sp-1);
+  margin-top: 4px;
   font-size: var(--fs-micro);
   font-weight: var(--fw-semibold);
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   color: var(--ink-3);
+  text-transform: uppercase;
 }
 
-/* 三档语义着色：待复习=珊瑚（要动手）· 已学词=薄荷（进度）· 连续=琥珀（能量） */
+/* 三档语义着色 */
 .hm-metric.is-due b { color: var(--coral); }
 .hm-metric.is-learned b { color: var(--mint-ink); }
 .hm-metric.is-streak b { color: var(--amber-ink); }
@@ -57,13 +60,11 @@
 /* ---------------- 第二行：最近学习的词 ---------------- */
 .hm-words {
   margin-top: var(--sp-3);
-  padding: var(--sp-4) var(--sp-4) var(--sp-3);
-  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
-}
-[data-theme="dark"] .hm-words {
-  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-1);
 }
 
 .hm-words-head {
@@ -83,12 +84,18 @@
 .hm-words-all {
   border: none;
   background: none;
-  padding: 2px 0;
+  padding: 2px 4px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   color: var(--brand);
+  cursor: pointer;
+  border-radius: var(--r-xs);
+  transition: all var(--dur-fast) var(--ease-out);
 }
-.hm-words-all:hover { color: var(--brand-hi); }
+.hm-words-all:hover {
+  color: var(--brand-hi);
+  background: var(--brand-soft);
+}
 
 /* 横向轨道：单行卡片，超出时横向滚动 */
 .hm-words-row {
@@ -102,31 +109,35 @@
 
 .hm-word {
   position: relative;
-  flex: 0 0 148px;
-  min-height: 84px;
+  flex: 0 0 152px;
+  min-height: 86px;
   padding: var(--sp-3) var(--sp-3) var(--sp-4);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   text-align: left;
   scroll-snap-align: start;
-  border: none;
+  border: 1px solid var(--hairline);
   border-radius: var(--r-md);
   background: var(--n-1);
-  box-shadow: inset 0 0 0 1px var(--line);
-  transition: transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base), background var(--dur-fast);
+  box-shadow: var(--sh-1);
+  transition: all var(--dur-fast) var(--ease-out);
+  cursor: pointer;
 }
 .hm-word:hover {
   background: var(--card);
   transform: translateY(-2px);
-  box-shadow: var(--sh-2), inset 0 0 0 1px var(--brand-line);
+  border-color: var(--brand-line);
+  box-shadow: var(--sh-2);
 }
-.hm-word:active { transform: translateY(0) scale(.99); }
+.hm-word:active {
+  transform: translateY(0) scale(0.98);
+}
 
 .hm-word-text {
   font-size: var(--fs-md);
   font-weight: var(--fw-black);
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
   color: var(--ink-1);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -143,18 +154,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hm-word-mean.is-none { color: var(--ink-3); }
+.hm-word-mean.is-none {
+  color: var(--ink-3);
+}
 
-/* 底部记忆状态细条：颜色由 is-tier-* 决定的 --hm-tier 给出 */
+/* 底部记忆状态细条 */
 .hm-word-bar {
   position: absolute;
   left: var(--sp-3);
   right: var(--sp-3);
-  bottom: 9px;
+  bottom: 8px;
   height: 3px;
   border-radius: var(--r-pill);
   background: var(--hm-tier, var(--ink-3));
-  opacity: .92;
+  opacity: 0.95;
 }
 .hm-word.is-tier-new { --hm-tier: var(--brand); }
 .hm-word.is-tier-solid { --hm-tier: var(--mint); }
@@ -169,12 +182,10 @@
   flex-wrap: wrap;
   margin-top: var(--sp-3);
   padding: var(--sp-4) var(--sp-5);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
-}
-[data-theme="dark"] .hm-empty {
-  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-1);
 }
 .hm-empty p {
   margin: 0;
@@ -182,85 +193,60 @@
   color: var(--ink-2);
 }
 
-/* ---------------- 窄窗口 ---------------- */
-@media (max-width: 720px) {
-  .hm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hm-metric { padding: var(--sp-3) var(--sp-4); }
-  .hm-metric-num { font-size: var(--fs-2xl); }
-  .hm-word { flex-basis: 132px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hm-word { transition: none; }
-  .hm-word:hover { transform: none; }
-}
-
-/* ============================================================
-   书封（程序生成）：词库页 Vocab.tsx 与首页计划卡共用同一个 .book-cover
-   ------------------------------------------------------------
-   56×76 的哑光封面：左缘 4px 深色书脊 + 1px 高光，纹样由内联 style 叠在
-   渐变之下。这样两个页面的封面永远一致。
-   ============================================================ */
+/* ---------------- 书封（程序生成） ---------------- */
 .book-cover {
   width: 56px;
   height: 76px;
   border-radius: 10px;
-  padding: 8px 9px 8px 13px;
+  padding: 8px 9px 8px 14px;
+  display: flex;
+  flex-direction: column;
   justify-content: space-between;
   gap: 0;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, .22);
-  background-origin: border-box;
-  box-shadow: var(--sh-1), 0 6px 14px -8px rgba(18, 33, 47, .5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--sh-2), 0 8px 18px -6px rgba(15, 23, 42, 0.4);
 }
-
-/* 书脊：深色压边（+ 1px 高光由 ::after 压在右侧） */
+/* 书脊阴影与高光 */
 .book-cover::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 4px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, .34), rgba(0, 0, 0, .5));
+  width: 5px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.1) 100%);
 }
-
-/* 书脊高光：1px 白线 */
 .book-cover::after {
   content: "";
   position: absolute;
-  left: 4px;
+  left: 5px;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: rgba(255, 255, 255, .34);
+  background: rgba(255, 255, 255, 0.4);
 }
-
 .book-cover > b,
 .book-cover > span {
   position: relative;
   z-index: 1;
 }
-
 .book-cover b {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: var(--fw-black);
-  letter-spacing: .1em;
+  letter-spacing: 0.1em;
   line-height: 1.2;
-  opacity: .96;
 }
-
 .book-cover span {
-  font-size: 9px;
-  font-weight: var(--fw-black);
-  letter-spacing: .14em;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.12em;
   line-height: 1.2;
-  opacity: .85;
+  opacity: 0.9;
 }
 
 /* ============================================================
    今日驾驶舱扩展层（.hm-cockpit / .hm-main / .hm-side / .hm-hero）
-   ------------------------------------------------------------
-   ≥1180px 由 desktop.css 的 .grid-2.is-aside 提供两栏
-   （左 1fr + 右 340px），窄窗口自动回落单栏；浅深主题全走令牌。
    ============================================================ */
 .hm-cockpit {
   margin-bottom: var(--sp-4);
@@ -280,29 +266,30 @@
   align-items: center;
   gap: var(--sp-6);
   flex-wrap: wrap;
-  padding: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
   border: 1px solid var(--hairline);
-  border-radius: var(--r-lg);
-  background-color: var(--card);
-  background-image: var(--grain-layer), var(--card-fill);
-  background-size: var(--grain-size), auto;
-  background-repeat: repeat, no-repeat;
-  box-shadow: var(--sh-2), var(--inner-hi);
+  border-radius: var(--r-card);
+  background: var(--card);
+  background-image: radial-gradient(480px 220px at 0% 0%, var(--brand-soft) 0%, transparent 80%);
+  box-shadow: var(--sh-2);
+  transition: box-shadow var(--dur-base) var(--ease-out);
 }
 
-.hm-hero-score { min-width: 0; }
+.hm-hero-score {
+  min-width: 0;
+}
 
 .hm-hero-numrow {
   display: flex;
   align-items: baseline;
-  gap: var(--sp-2);
+  gap: 6px;
 }
 
 .hm-hero-num {
-  font-size: calc(var(--fs-4xl) * 1.5);
+  font-size: calc(var(--fs-4xl) * 1.55);
   font-weight: var(--fw-black);
   line-height: 1;
-  letter-spacing: -.05em;
+  letter-spacing: -0.045em;
   color: var(--coral);
   font-variant-numeric: tabular-nums;
 }
@@ -318,38 +305,83 @@
   align-items: center;
   gap: var(--sp-2);
   flex-wrap: wrap;
-  margin-top: var(--sp-2);
+  margin-top: 6px;
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
   color: var(--ink-2);
 }
 
-/* 逾期小字标注：珊瑚软底胶囊 */
+/* 逾期标签胶囊 */
 .hm-hero-overdue {
-  padding: 2px 9px;
+  padding: 2px 10px;
   border-radius: var(--r-pill);
   background: var(--coral-soft);
   color: var(--coral-ink);
   font-size: var(--fs-micro);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-bold);
+  border: 1px solid rgba(244, 63, 94, 0.25);
 }
 
-/* 从计划卡移入英雄区的新学/复习双按钮（逻辑不变，仅位置与占比） */
+/* 计划卡双行动按钮 */
 .hm-hero .plan-buttons {
   flex: 1 1 300px;
   min-width: 250px;
   margin-top: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.btn-plan {
+  min-height: 56px;
+  padding: 8px var(--sp-4);
+  border: none;
+  border-radius: var(--r-btn);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-black);
+  color: #fff;
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, var(--brand-hi) 0%, var(--brand) 100%);
+  box-shadow: var(--sh-brand);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.btn-plan:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand-hi) 90%, #fff) 0%, var(--brand-hi) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px -2px rgba(51, 102, 255, 0.45);
+}
+.btn-plan:active {
+  transform: scale(0.98);
+}
+.btn-plan .btn-plan-sub {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  opacity: 0.92;
+}
+
+.btn-plan.is-ghost {
+  background: linear-gradient(180deg, var(--mint-hi) 0%, var(--mint) 100%);
+  box-shadow: 0 4px 14px -2px rgba(16, 185, 129, 0.35);
+}
+.btn-plan.is-ghost:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mint-hi) 90%, #fff) 0%, var(--mint-hi) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px -2px rgba(16, 185, 129, 0.45);
 }
 
 /* ---------------- 右栏：状态小卡基座 ---------------- */
 .hm-side-card {
-  padding: var(--sp-4);
-  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
-}
-[data-theme="dark"] .hm-side-card {
-  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--sh-1);
 }
 
 /* ---- 五档掌握迷你横向堆叠条 ---- */
@@ -368,29 +400,32 @@
 
 .hm-tiers-meta {
   font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
   color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
 
 .hm-tiers-bar {
   display: flex;
-  gap: 2px;
-  height: 14px;
+  gap: 3px;
+  height: 16px;
   margin-top: var(--sp-3);
   padding: 2px;
   border-radius: var(--r-pill);
   background: var(--n-2);
-  box-shadow: inset 0 0 0 1px var(--hairline);
+  border: 1px solid var(--hairline);
 }
 
 .hm-tiers-bar i {
   display: block;
   height: 100%;
-  min-width: 5px;
+  min-width: 6px;
   border-radius: var(--r-pill);
+  transition: all var(--dur-slow) var(--ease-out);
 }
 
-/* 五档语义色（堆叠段与图例圆点共用）：待学=中性 · 待复习=珊瑚 · 巩固中=品牌 · 熟识=薄荷 · 已斩=琥珀 */
-.hm-cockpit .st-fresh { background: var(--n-4); }
+/* 五档语义色 */
+.hm-cockpit .st-fresh { background: var(--brand-300); }
 .hm-cockpit .st-due { background: var(--coral); }
 .hm-cockpit .st-solid { background: var(--brand); }
 .hm-cockpit .st-known { background: var(--mint); }
@@ -415,11 +450,12 @@
 .hm-tiers-legend li b {
   color: var(--ink-1);
   font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
 }
 .hm-tiers-legend li i {
   width: 8px;
   height: 8px;
-  border-radius: 3px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
@@ -434,19 +470,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   background: var(--amber-soft);
-  color: var(--amber-ink);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  box-shadow: 0 2px 8px -2px rgba(245, 158, 11, 0.3);
 }
 
 .hm-streak-num {
   font-size: var(--fs-2xl);
   font-weight: var(--fw-black);
-  line-height: 1.05;
-  letter-spacing: -.04em;
+  line-height: 1;
+  letter-spacing: -0.04em;
   color: var(--amber-ink);
   font-variant-numeric: tabular-nums;
 }
@@ -454,7 +492,7 @@
 .hm-streak-text {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 .hm-streak-text span {
@@ -467,11 +505,14 @@
   color: var(--ink-3);
 }
 
-/* ---- 右栏最近学习的词：2×2 压缩网格（复用 .hm-words 结构） ---- */
+/* ---- 右栏最近学习的词：2×2 压缩网格 ---- */
 .hm-side .hm-words,
-.hm-side .hm-empty { margin-top: 0; }
-
-.hm-side .hm-words { padding: var(--sp-4); }
+.hm-side .hm-empty {
+  margin-top: 0;
+}
+.hm-side .hm-words {
+  padding: var(--sp-4);
+}
 .hm-side .hm-words-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -482,7 +523,7 @@
 }
 .hm-side .hm-word {
   flex: initial;
-  min-height: 74px;
+  min-height: 76px;
   padding: var(--sp-2) var(--sp-3) var(--sp-4);
 }
 
@@ -500,42 +541,47 @@
   justify-content: space-between;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
-  border: none;
-  border-radius: var(--r-lg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
   background: var(--card);
-  box-shadow: var(--sh-1), inset 0 0 0 1px rgba(255, 255, 255, .6);
+  box-shadow: var(--sh-1);
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
   color: var(--ink-2);
   text-align: left;
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast), color var(--dur-fast);
-}
-[data-theme="dark"] .hm-nb-entry {
-  box-shadow: var(--sh-1), inset 0 0 0 1px var(--line);
+  transition: all var(--dur-fast) var(--ease-out);
 }
 .hm-nb-entry:hover {
   color: var(--brand);
   transform: translateY(-1px);
-  box-shadow: var(--sh-2), inset 0 0 0 1px var(--brand-line);
+  border-color: var(--brand-line);
+  box-shadow: var(--sh-2);
 }
 .hm-nb-entry svg {
   flex-shrink: 0;
   color: var(--ink-3);
-  transition: color var(--dur-fast);
+  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.hm-nb-entry:hover svg { color: var(--brand); }
+.hm-nb-entry:hover svg {
+  color: var(--brand);
+  transform: translateX(3px);
+}
 
-/* ---------------- 窄窗口 ---------------- */
+/* ---------------- 窄窗口响应式 ---------------- */
 @media (max-width: 720px) {
+  .hm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hm-hero { padding: var(--sp-4); gap: var(--sp-4); }
-  .hm-hero-num { font-size: calc(var(--fs-3xl) * 1.4); }
+  .hm-hero-num { font-size: calc(var(--fs-3xl) * 1.35); }
   .hm-hero .plan-buttons { flex-basis: 100%; min-width: 0; }
+  .hm-word { flex-basis: 136px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hm-nb-entry { transition: none; }
-  .hm-nb-entry:hover { transform: none; }
-  .hm-hero .plan-buttons .btn-plan { transition: none; }
-  .hm-hero .plan-buttons .btn-plan:hover { transform: none; }
+  .hm-word,
+  .hm-nb-entry,
+  .btn-plan {
+    transition: none !important;
+    transform: none !important;
+  }
 }

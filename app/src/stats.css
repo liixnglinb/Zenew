@@ -1,24 +1,23 @@
 /* ============================================================
    统计页图表化（Stats.tsx 专用，st-* 作用域）
    ------------------------------------------------------------
-   1. 预测图：悬停浮层复用 desktop.css 的 [data-tip]（挂到柱体上），
-      「今天」基准线 = today 柱左缘的品牌色带；
-   2. 掌握进展：自绘 SVG 折线 + 渐变面积（无图表库），
-      末点薄荷色高亮沿用旧「末柱高亮」的语义；
-   3. 五档掌握：每档 百分比（值/合计）+ 一句白话解释。
-   颜色全部走 index.css v6 令牌，浅深主题自动跟随。
+   视觉升级：
+   1. 预测图：悬停浮层复用 [data-tip]，今天基准线采用发光电光蓝竖线
+   2. 掌握进展：自绘 SVG 折线 + 渐变面积图，末点薄荷高亮发光
+   3. 五档掌握：卡片化列表，百分比进度条 + 白话解释，各档语义色点亮
    ============================================================ */
 
-/* ---------------- 预测图：「今天」基准竖线（today 柱左缘） ---------------- */
+/* ---------------- 预测图：「今天」基准竖线 ---------------- */
 .st-today-line {
   position: absolute;
   left: -1px;
   top: -8px;
   bottom: -2px;
-  width: 2px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--brand) 55%, transparent);
-  z-index: 1;
+  width: 2.5px;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+  box-shadow: 0 0 8px var(--brand);
+  z-index: 2;
   pointer-events: none;
 }
 
@@ -29,10 +28,9 @@
   justify-content: space-between;
   gap: var(--sp-3);
   flex-wrap: wrap;
-  margin-bottom: var(--sp-3);
+  margin-bottom: var(--sp-4);
 }
 
-/* 加载骨架（复用全局 .skeleton 外观，只定高度） */
 .st-prog-skeleton {
   border-radius: var(--r-md);
 }
@@ -42,12 +40,14 @@
   display: block;
   width: 100%;
   height: auto;
+  overflow: visible;
 }
 
 .st-grid {
   stroke: var(--line);
   stroke-width: 1;
-  stroke-dasharray: 3 6;
+  stroke-dasharray: 4 6;
+  opacity: 0.8;
 }
 
 .st-baseline {
@@ -58,23 +58,29 @@
 .st-line {
   fill: none;
   stroke: var(--brand);
-  stroke-width: 2.5;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
+  filter: drop-shadow(0 4px 8px rgba(51, 102, 255, 0.3));
 }
 
-/* 末点高亮（旧 .area-col.is-last 的薄荷语义） */
+/* 末点高亮 */
 .st-dot-last {
   fill: var(--mint);
   stroke: var(--card);
-  stroke-width: 2.5;
-  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--mint) 45%, transparent));
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.5));
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+.st-dot-last:hover {
+  transform: scale(1.2);
 }
 
 /* ---------------- 五档掌握：百分比 + 白话注解 ---------------- */
 .st-state-notes {
   display: flex;
   flex-direction: column;
+  gap: var(--sp-2);
   margin: var(--sp-3) 0 0;
   padding: 0;
   list-style: none;
@@ -82,35 +88,49 @@
 
 .st-state-notes li {
   display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
+  align-items: center;
+  gap: var(--sp-3);
   flex-wrap: wrap;
-  padding: 7px 0;
-  border-top: 1px solid var(--hairline);
+  padding: 10px var(--sp-4);
+  border-radius: var(--r-inner);
+  background: var(--n-1);
+  border: 1px solid var(--hairline);
   font-size: var(--fs-xs);
+  transition: all var(--dur-fast) var(--ease-out);
 }
-.st-state-notes li:first-child { border-top: 0; }
+.st-state-notes li:hover {
+  background: var(--card);
+  border-color: var(--brand-line);
+  transform: translateX(2px);
+  box-shadow: var(--sh-1);
+}
 
 .st-state-notes b {
   color: var(--ink-1);
   font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
 }
 
 .st-state-notes .st-pct {
-  color: var(--ink-2);
-  font-weight: var(--fw-semibold);
+  color: var(--brand);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  background: var(--brand-soft);
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
 }
 
 .st-state-notes small {
   margin-left: auto;
-  color: var(--ink-3);
+  color: var(--ink-2);
   text-align: right;
+  font-size: var(--fs-xs);
 }
 
-/* 五档圆点（与柱色同源的令牌化近似，浅深主题各取对应 token） */
+/* 五档圆点 */
 .st-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 3px;
   flex-shrink: 0;
   align-self: center;
@@ -127,5 +147,6 @@
     margin-left: 0;
     flex-basis: 100%;
     text-align: left;
+    margin-top: 2px;
   }
 }
