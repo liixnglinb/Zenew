@@ -1,4 +1,5 @@
 import { check, type Update } from '@tauri-apps/plugin-updater'
+import { invoke } from '@tauri-apps/api/core'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { isTauri } from './db'
 
@@ -7,17 +8,54 @@ export interface UpdateInfo {
   notes: string | null
 }
 
-/** 检查更新。返回 Update=有新版本 / null=已是最新；网络等异常会抛出（调用方区分「检查失败」与「已是最新」） */
-export async function checkUpdate(): Promise<Update | null> {
-  if (!isTauri()) return null
-  return await check()
+type PortableUpdate = UpdateInfo & {
+  kind: 'portable'
+  url: string
+  sha256: string
+  signature: string
+  size: number | null
 }
 
-/** 下载并安装更新（免安装静默替换），然后重启应用 */
-export async function applyUpdate(update: Update, onProgress?: (received: number, total: number | null) => void): Promise<void> {
+type InstalledUpdate = UpdateInfo & {
+  kind: 'installed'
+  native: Update
+}
+
+export type AppUpdate = PortableUpdate | InstalledUpdate
+
+let portableCache: boolean | null = null
+
+export async function isPortable(): Promise<boolean> {
+  if (!isTauri()) return false
+  if (portableCache !== null) return portableCache
+  portableCache = await invoke<boolean>('is_portable')
+  return portableCache
+}
+
+/** 统一更新检查：安装版走 Tauri updater，绿色版走自研签名 ZIP 更新器。 */
+export async function checkUpdate(): Promise<AppUpdate | null> {
+  if (!isTauri()) return null
+  if (await isPortable()) {
+    const u = await invoke<PortableUpdate | null>('check_portable_update')
+    return u ? { ...u, kind: 'portable' } : null
+  }
+  const native = await check()
+  return native
+    ? { kind: 'installed', version: native.version, notes: native.body ?? null, native }
+    : null
+}
+
+/** 下载并安装更新；绿色版会退出当前进程，再由外部更新脚本替换并启动新版本。 */
+export async function applyUpdate(update: AppUpdate, onProgress?: (received: number, total: number | null) => void): Promise<void> {
+  if (update.kind === 'portable') {
+    // Rust 更新器负责下载、SHA-256、Minisign 验签、解压、替换、回滚和重启。
+    await invoke('apply_portable_update', { update })
+    return
+  }
+
   let received = 0
   let contentLength: number | null = null
-  await update.downloadAndInstall((event) => {
+  await update.native.downloadAndInstall((event) => {
     switch (event.event) {
       case 'Started':
         contentLength = event.data.contentLength ?? null

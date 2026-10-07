@@ -61,3 +61,12 @@
 1. 绿色版 v0.1 → 发布 v0.2 → 应用内提示 → 一键升级 → 重启后 `关于` 显示 v0.2。
 2. 中途断网重试不损坏现有安装；校验失败自动回滚且老版本可继续使用。
 3. 安装版同一清单走 tauri-plugin-updater 升级成功。
+
+## 当前实现落地说明（v0.23.1）
+
+- 安装版：继续使用 `tauri-plugin-updater`，通过现有 `latest.json` 的 `platforms.windows-x86_64` 更新。
+- 绿色版：程序目录存在 `.zenew-portable` 时，前端自动切换到内置 Rust 更新器。
+- 绿色版安装前执行 SHA-256 + Minisign 双重校验；下载包暂存到 `%LOCALAPPDATA%/Zenew/updates/{version}/`。
+- 替换通过脱离主进程的 `apply.cmd` 完成；新进程启动后进行存活探测，失败自动恢复 `.bak`。
+- `scripts/build-portable.py` 负责制作绿色版 ZIP；发布前需使用与安装版相同的 Minisign 私钥签署 ZIP，并将 `.sig` 一并放进 `release/`。
+- `scripts/make-latest-json.py` 同时写入安装版和绿色版字段；两个通道仍共享版本号和公钥。

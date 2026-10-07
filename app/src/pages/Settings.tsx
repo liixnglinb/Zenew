@@ -100,7 +100,7 @@ export default function SettingsPage() {
     else setVer('dev')
     checkUpdate()
       .then((u) => {
-        if (u) setUpdate({ version: u.version, notes: u.body ?? null })
+        if (u) setUpdate({ version: u.version, notes: u.notes ?? null })
       })
       .catch(() => {})
     void loadLocalStats()

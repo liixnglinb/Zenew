@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Update } from '@tauri-apps/plugin-updater'
-import { checkUpdate, applyUpdate } from '../updater'
+import { checkUpdate, applyUpdate, type AppUpdate } from '../updater'
 import { isTauri } from '../db'
 
 type Phase = 'boot' | 'checking' | 'idle' | 'available' | 'downloading' | 'restarting' | 'error'
@@ -16,7 +15,7 @@ export default function UpdatePill() {
   const [phase, setPhase] = useState<Phase>('boot')
   const [pct, setPct] = useState(0)
   const [bytes, setBytes] = useState<{ got: number; total: number | null }>({ got: 0, total: null })
-  const updRef = useRef<Update | null>(null)
+  const updRef = useRef<AppUpdate | null>(null)
   const phaseRef = useRef<Phase>('boot')
   phaseRef.current = phase
 

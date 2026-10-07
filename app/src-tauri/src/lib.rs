@@ -1,3 +1,6 @@
+mod portable_updater;
+
+use portable_updater::{is_portable, check, install};
 use tauri::{
   menu::{Menu, MenuItem},
   tray::{TrayIconBuilder, TrayIconEvent},
@@ -88,6 +91,7 @@ pub fn run() {
       }
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![is_portable, check, install])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
